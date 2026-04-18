@@ -1,5 +1,8 @@
 import "dotenv/config";
 import { Client, Events, GatewayIntentBits, type Message } from "discord.js";
+import { ensureDatabaseConnection, runMigrations } from "./db";
+import { registerSlashCommands } from "./commands/register";
+import { handleBirthdayCommand } from "./commands/birthday-handler";
 
 const token = process.env.DISCORD_TOKEN;
 if (!token) {
@@ -28,4 +31,21 @@ client.on(Events.MessageCreate, (message: Message) => {
   }
 });
 
-client.login(token);
+client.on(Events.InteractionCreate, async (interaction) => {
+  if (!interaction.isChatInputCommand()) return;
+  if (interaction.commandName !== "bd") return;
+
+  await handleBirthdayCommand(interaction);
+});
+
+async function bootstrap(): Promise<void> {
+  await ensureDatabaseConnection();
+  await runMigrations();
+  await registerSlashCommands();
+  await client.login(token);
+}
+
+void bootstrap().catch((error) => {
+  console.error("Не удалось запустить бота", error);
+  process.exit(1);
+});

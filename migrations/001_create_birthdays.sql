@@ -1,0 +1,6 @@
+CREATE TABLE IF NOT EXISTS birthdays (
+  discord_user_id TEXT PRIMARY KEY,
+  birthday_date TIMESTAMPTZ NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
