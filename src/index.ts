@@ -6,6 +6,11 @@ import {
   handleBirthdayCommand,
   handleBirthdayModalSubmit,
 } from "./commands/birthday-handler";
+import {
+  ensureBirthdayAccess,
+  isPublicBirthdaySubcommand,
+  loadBirthdayAccessConfig,
+} from "./commands/birthday-access";
 
 const token = process.env.DISCORD_TOKEN;
 if (!token) {
@@ -13,6 +18,8 @@ if (!token) {
     "DISCORD_TOKEN is not set. Add it to your environment or .env file.",
   );
 }
+
+const birthdayAccessConfig = loadBirthdayAccessConfig();
 
 const client = new Client({
   intents: [
@@ -36,6 +43,16 @@ client.on(Events.MessageCreate, (message: Message) => {
 
 client.on(Events.InteractionCreate, async (interaction) => {
   if (interaction.isModalSubmit()) {
+    if (interaction.customId.startsWith("bd:")) {
+      const hasAccess = await ensureBirthdayAccess(
+        interaction,
+        birthdayAccessConfig,
+      );
+      if (!hasAccess) {
+        return;
+      }
+    }
+
     const handled = await handleBirthdayModalSubmit(interaction);
     if (handled) {
       return;
@@ -44,6 +61,17 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
   if (!interaction.isChatInputCommand()) return;
   if (interaction.commandName !== "bd") return;
+
+  const hasAccess = await ensureBirthdayAccess(
+    interaction,
+    birthdayAccessConfig,
+    {
+      requireRole: !isPublicBirthdaySubcommand(interaction),
+    },
+  );
+  if (!hasAccess) {
+    return;
+  }
 
   await handleBirthdayCommand(interaction);
 });
