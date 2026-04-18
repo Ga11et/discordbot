@@ -3,9 +3,11 @@ import {
   closeTestDb,
   getTestClient,
   resetBirthdaysTable,
+  resetGratzMessagesTable,
   setupTestDb,
 } from "./helpers/test-db";
 import { createBirthdayService } from "../src/birthdays/service";
+import { createGratzService } from "../src/birthdays/gratz-service";
 import { BirthdayCommandProcessor } from "../src/birthdays/processor";
 import { BirthdayCommandError } from "../src/birthdays/errors";
 
@@ -13,8 +15,10 @@ const ACTOR_ID = "111";
 const OTHER_USER_ID = "222";
 
 function createProcessor(): BirthdayCommandProcessor {
-  const service = createBirthdayService(getTestClient());
-  return new BirthdayCommandProcessor(service);
+  const client = getTestClient();
+  const service = createBirthdayService(client);
+  const gratz = createGratzService(client);
+  return new BirthdayCommandProcessor(service, gratz);
 }
 
 describe("BirthdayCommandProcessor (e2e)", () => {
@@ -24,6 +28,7 @@ describe("BirthdayCommandProcessor (e2e)", () => {
 
   beforeEach(async () => {
     await resetBirthdaysTable();
+    await resetGratzMessagesTable();
   });
 
   afterAll(async () => {
@@ -115,4 +120,78 @@ describe("BirthdayCommandProcessor (e2e)", () => {
       ).rejects.toBeInstanceOf(BirthdayCommandError);
     },
   );
+
+  it("creates and retrieves a gratz message by id", async () => {
+    const processor = createProcessor();
+
+    const createResult = await processor.createGratzMessage(
+      "С днём рождения! 🎉",
+    );
+    expect(createResult).toContain("id");
+
+    const idMatch = createResult.match(/(\d+)/);
+    expect(idMatch).not.toBeNull();
+
+    const fullMessage = await processor.getGratzMessage(idMatch![1]);
+    expect(fullMessage).toContain("С днём рождения! 🎉");
+  });
+
+  it("lists gratz messages with preview trimmed to 50 chars", async () => {
+    const processor = createProcessor();
+
+    await processor.createGratzMessage(
+      "Очень длинное поздравление с переносом\nстроки и дополнительным текстом для обрезки после пятидесяти символов",
+    );
+
+    const listMessage = await processor.listGratzMessages();
+    expect(listMessage).toMatch(/^\d+\. /);
+    expect(listMessage).toContain("...");
+    expect(listMessage).not.toContain("\nстроки");
+  });
+
+  it("deletes gratz message by id", async () => {
+    const processor = createProcessor();
+
+    const createResult = await processor.createGratzMessage(
+      "Удаляемое сообщение",
+    );
+    const id = createResult.match(/(\d+)/)?.[1];
+    expect(id).toBeDefined();
+
+    const deleteResult = await processor.deleteGratzMessage(id!);
+    expect(deleteResult).toContain("удалено");
+
+    await expect(() => processor.getGratzMessage(id!)).rejects.toBeInstanceOf(
+      BirthdayCommandError,
+    );
+  });
+
+  it("throws domain error when deleting missing gratz id", async () => {
+    const processor = createProcessor();
+
+    await expect(() => processor.deleteGratzMessage("999999")).rejects.toThrow(
+      "Поздравление с таким id не найдено",
+    );
+  });
+
+  it("builds public gratz message with mention", async () => {
+    const processor = createProcessor();
+
+    await processor.createGratzMessage("[user], желаю счастья и здоровья!");
+    const result = await processor.gratzUser(OTHER_USER_ID);
+
+    expect(result).toContain(`<@${OTHER_USER_ID}>,`);
+    expect(result).toContain("желаю счастья и здоровья!");
+  });
+
+  it("fails gratz operations when no message templates are stored", async () => {
+    const processor = createProcessor();
+
+    await expect(() => processor.gratzUser(OTHER_USER_ID)).rejects.toThrow(
+      "Пока нет ни одного поздравления",
+    );
+    await expect(() => processor.listGratzMessages()).rejects.toThrow(
+      "Пока нет ни одного поздравления",
+    );
+  });
 });

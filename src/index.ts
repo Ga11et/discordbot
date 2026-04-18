@@ -2,7 +2,10 @@ import "dotenv/config";
 import { Client, Events, GatewayIntentBits, type Message } from "discord.js";
 import { ensureDatabaseConnection, runMigrations } from "./db";
 import { registerSlashCommands } from "./commands/register";
-import { handleBirthdayCommand } from "./commands/birthday-handler";
+import {
+  handleBirthdayCommand,
+  handleBirthdayModalSubmit,
+} from "./commands/birthday-handler";
 
 const token = process.env.DISCORD_TOKEN;
 if (!token) {
@@ -32,6 +35,13 @@ client.on(Events.MessageCreate, (message: Message) => {
 });
 
 client.on(Events.InteractionCreate, async (interaction) => {
+  if (interaction.isModalSubmit()) {
+    const handled = await handleBirthdayModalSubmit(interaction);
+    if (handled) {
+      return;
+    }
+  }
+
   if (!interaction.isChatInputCommand()) return;
   if (interaction.commandName !== "bd") return;
 

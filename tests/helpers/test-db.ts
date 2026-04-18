@@ -38,6 +38,11 @@ export async function resetBirthdaysTable(): Promise<void> {
   await testClient("birthdays").truncate();
 }
 
+export async function resetGratzMessagesTable(): Promise<void> {
+  const testClient = getTestClient();
+  await testClient("birthday_gratz_messages").truncate();
+}
+
 export async function closeTestDb(): Promise<void> {
   if (!client) return;
   await client.destroy();

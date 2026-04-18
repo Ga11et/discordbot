@@ -1,0 +1,6 @@
+CREATE TABLE IF NOT EXISTS birthday_gratz_messages (
+  id BIGSERIAL PRIMARY KEY,
+  message_text TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
