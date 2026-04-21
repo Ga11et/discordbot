@@ -1,7 +1,10 @@
-import type {
-  ChatInputCommandInteraction,
-  InteractionReplyOptions,
+import {
+  MessageFlags,
+  type ChatInputCommandInteraction,
+  type InteractionReplyOptions,
 } from "discord.js";
+
+const EPHEMERAL_FLAGS = MessageFlags.Ephemeral;
 
 export interface KickQueueAccessConfig {
   allowedChannelId: string;
@@ -95,7 +98,7 @@ async function replyToInteraction(
 ): Promise<void> {
   const payload: InteractionReplyOptions = {
     content,
-    ephemeral: true,
+    flags: EPHEMERAL_FLAGS,
   };
 
   if (interaction.deferred || interaction.replied) {

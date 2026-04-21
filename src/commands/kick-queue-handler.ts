@@ -1,11 +1,16 @@
-import type {
-  ChatInputCommandInteraction,
-  InteractionReplyOptions,
+import {
+  MessageFlags,
+  type ChatInputCommandInteraction,
+  type InteractionReplyOptions,
 } from "discord.js";
 import {
   KickQueueService,
   kickQueueService,
 } from "../members/kick-queue-service";
+import { sendKickQueueCheckMessage } from "./kick-queue-check";
+
+type SendKickQueueCheckMessage = typeof sendKickQueueCheckMessage;
+const EPHEMERAL_FLAGS = MessageFlags.Ephemeral;
 
 async function respond(
   interaction: ChatInputCommandInteraction,
@@ -14,7 +19,9 @@ async function respond(
 ): Promise<void> {
   const payload: InteractionReplyOptions = { content, ...options };
 
-  if (interaction.deferred || interaction.replied) {
+  if (interaction.deferred) {
+    await interaction.editReply({ content });
+  } else if (interaction.replied) {
     await interaction.followUp(payload);
   } else {
     await interaction.reply(payload);
@@ -30,10 +37,11 @@ function formatPendingKickList(userIds: string[]): string {
 export async function handleKickQueueCommand(
   interaction: ChatInputCommandInteraction,
   service: KickQueueService = kickQueueService,
+  sendCheckMessage: SendKickQueueCheckMessage = sendKickQueueCheckMessage,
 ): Promise<void> {
   if (!interaction.inGuild() || !interaction.guildId) {
     await respond(interaction, "Команда доступна только на сервере", {
-      ephemeral: true,
+      flags: EPHEMERAL_FLAGS,
     });
     return;
   }
@@ -41,13 +49,32 @@ export async function handleKickQueueCommand(
   const guildId = interaction.guildId;
   const subcommand = interaction.options.getSubcommand();
 
+  if (subcommand === "check") {
+    const user = interaction.options.getUser("user", true);
+    await interaction.deferReply({ flags: EPHEMERAL_FLAGS });
+    await service.addPendingKickUser(guildId, user.id);
+
+    try {
+      await sendCheckMessage(user, guildId);
+      await interaction.editReply(
+        `Пользователь <@${user.id}> добавлен в очередь на кик, сообщение отправлено в ЛС`,
+      );
+    } catch {
+      await service.removePendingKickUser(guildId, user.id);
+      await interaction.editReply(
+        `Не удалось отправить сообщение в ЛС пользователю <@${user.id}>`,
+      );
+    }
+    return;
+  }
+
   if (subcommand === "add") {
     const user = interaction.options.getUser("user", true);
     await service.addPendingKickUser(guildId, user.id);
     await respond(
       interaction,
       `Пользователь <@${user.id}> добавлен в очередь на кик`,
-      { ephemeral: true },
+      { flags: EPHEMERAL_FLAGS },
     );
     return;
   }
@@ -61,7 +88,7 @@ export async function handleKickQueueCommand(
       removed
         ? `Пользователь <@${user.id}> удалён из очереди на кик`
         : `Пользователь <@${user.id}> не найден в очереди на кик`,
-      { ephemeral: true },
+      { flags: EPHEMERAL_FLAGS },
     );
     return;
   }
@@ -73,12 +100,12 @@ export async function handleKickQueueCommand(
       records.length === 0
         ? "Очередь пользователей на кик пуста"
         : formatPendingKickList(records.map((record) => record.discordUserId)),
-      { ephemeral: true },
+      { flags: EPHEMERAL_FLAGS },
     );
     return;
   }
 
   await respond(interaction, "Неизвестная подкоманда kickqueue", {
-    ephemeral: true,
+    flags: EPHEMERAL_FLAGS,
   });
 }

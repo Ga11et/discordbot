@@ -7,6 +7,7 @@ import {
   handleBirthdayModalSubmit,
 } from "./commands/birthday-handler";
 import { handleKickQueueCommand } from "./commands/kick-queue-handler";
+import { handleKickQueueButtonInteraction } from "./commands/kick-queue-check";
 import {
   ensureBirthdayAccess,
   isPublicBirthdaySubcommand,
@@ -60,6 +61,13 @@ client.on(Events.InteractionCreate, async (interaction) => {
     }
 
     const handled = await handleBirthdayModalSubmit(interaction);
+    if (handled) {
+      return;
+    }
+  }
+
+  if (interaction.isButton()) {
+    const handled = await handleKickQueueButtonInteraction(interaction);
     if (handled) {
       return;
     }

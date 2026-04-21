@@ -1,12 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
-import type { ChatInputCommandInteraction } from "discord.js";
+import { MessageFlags, type ChatInputCommandInteraction } from "discord.js";
 import { handleKickQueueCommand } from "../src/commands/kick-queue-handler";
 import type { KickQueueService } from "../src/members/kick-queue-service";
 
 interface FakeKickQueueInteractionOptions {
   guildId?: string | null;
   inGuild?: boolean;
-  subcommand?: "add" | "remove" | "list";
+  subcommand?: "check" | "add" | "remove" | "list";
   userId?: string;
   deferred?: boolean;
   replied?: boolean;
@@ -23,6 +23,8 @@ function createServiceMock(): KickQueueService {
 function createFakeInteraction(options: FakeKickQueueInteractionOptions = {}) {
   const reply = vi.fn().mockResolvedValue(undefined);
   const followUp = vi.fn().mockResolvedValue(undefined);
+  const deferReply = vi.fn().mockResolvedValue(undefined);
+  const editReply = vi.fn().mockResolvedValue(undefined);
 
   const interaction = {
     inGuild: () => options.inGuild ?? true,
@@ -35,9 +37,11 @@ function createFakeInteraction(options: FakeKickQueueInteractionOptions = {}) {
     },
     reply,
     followUp,
+    deferReply,
+    editReply,
   } as unknown as ChatInputCommandInteraction;
 
-  return { interaction, reply, followUp };
+  return { interaction, reply, followUp, deferReply, editReply };
 }
 
 describe("handleKickQueueCommand", () => {
@@ -52,9 +56,64 @@ describe("handleKickQueueCommand", () => {
 
     expect(reply).toHaveBeenCalledWith({
       content: "Команда доступна только на сервере",
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
     expect(service.listPendingKickUsers).not.toHaveBeenCalled();
+  });
+
+  it("queues a user and sends the DM check message", async () => {
+    const service = createServiceMock();
+    const sendCheckMessage = vi.fn().mockResolvedValue(undefined);
+    const { interaction, deferReply, editReply, reply } = createFakeInteraction(
+      {
+        subcommand: "check",
+        userId: "user-55",
+      },
+    );
+
+    await handleKickQueueCommand(interaction, service, sendCheckMessage);
+
+    expect(deferReply).toHaveBeenCalledWith({
+      flags: MessageFlags.Ephemeral,
+    });
+    expect(service.addPendingKickUser).toHaveBeenCalledWith(
+      "guild-1",
+      "user-55",
+    );
+    expect(sendCheckMessage).toHaveBeenCalledWith({ id: "user-55" }, "guild-1");
+    expect(editReply).toHaveBeenCalledWith(
+      "Пользователь <@user-55> добавлен в очередь на кик, сообщение отправлено в ЛС",
+    );
+    expect(reply).not.toHaveBeenCalled();
+  });
+
+  it("rolls back queueing if the DM check message cannot be sent", async () => {
+    const service = createServiceMock();
+    const sendCheckMessage = vi.fn().mockRejectedValue(new Error("DM blocked"));
+    const { interaction, deferReply, editReply, reply } = createFakeInteraction(
+      {
+        subcommand: "check",
+        userId: "user-56",
+      },
+    );
+
+    await handleKickQueueCommand(interaction, service, sendCheckMessage);
+
+    expect(deferReply).toHaveBeenCalledWith({
+      flags: MessageFlags.Ephemeral,
+    });
+    expect(service.addPendingKickUser).toHaveBeenCalledWith(
+      "guild-1",
+      "user-56",
+    );
+    expect(service.removePendingKickUser).toHaveBeenCalledWith(
+      "guild-1",
+      "user-56",
+    );
+    expect(editReply).toHaveBeenCalledWith(
+      "Не удалось отправить сообщение в ЛС пользователю <@user-56>",
+    );
+    expect(reply).not.toHaveBeenCalled();
   });
 
   it("adds a user to the current guild queue", async () => {
@@ -72,7 +131,7 @@ describe("handleKickQueueCommand", () => {
     );
     expect(reply).toHaveBeenCalledWith({
       content: "Пользователь <@user-77> добавлен в очередь на кик",
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
   });
 
@@ -91,7 +150,7 @@ describe("handleKickQueueCommand", () => {
     expect(service.listPendingKickUsers).toHaveBeenCalledWith("guild-1");
     expect(reply).toHaveBeenCalledWith({
       content: "1. <@user-1> (`user-1`)\n2. <@user-2> (`user-2`)",
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
   });
 
@@ -111,7 +170,7 @@ describe("handleKickQueueCommand", () => {
     );
     expect(reply).toHaveBeenCalledWith({
       content: "Пользователь <@user-11> не найден в очереди на кик",
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
   });
 });

@@ -10,6 +10,19 @@ const kickQueueBuilder = new SlashCommandBuilder()
   .setDefaultMemberPermissions(PermissionFlagsBits.KickMembers)
   .addSubcommand((sub) =>
     sub
+      .setName("check")
+      .setDescription(
+        "Поставить пользователя в очередь и отправить ему проверку в ЛС",
+      )
+      .addUserOption((option) =>
+        option
+          .setName("user")
+          .setDescription("Пользователь для проверки")
+          .setRequired(true),
+      ),
+  )
+  .addSubcommand((sub) =>
+    sub
       .setName("add")
       .setDescription("Добавить пользователя в очередь на кик")
       .addUserOption((option) =>

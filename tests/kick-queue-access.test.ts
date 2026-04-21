@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { ChatInputCommandInteraction } from "discord.js";
+import { MessageFlags, type ChatInputCommandInteraction } from "discord.js";
 import {
   ensureKickQueueAccess,
   hasKickQueueAccess,
@@ -97,7 +97,7 @@ describe("kickqueue access checks", () => {
     expect(reply).toHaveBeenCalledWith({
       content:
         "Команды /kickqueue доступны только в канале <#channel-1> и для ролей: <@&role-a>, <@&role-b>",
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
   });
 
