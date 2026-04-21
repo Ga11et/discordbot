@@ -136,11 +136,11 @@ describe("BirthdayCommandProcessor (e2e)", () => {
     expect(fullMessage).toContain("С днём рождения! 🎉");
   });
 
-  it("lists gratz messages with preview trimmed to 50 chars", async () => {
+  it("lists gratz messages with preview trimmed to the configured limit", async () => {
     const processor = createProcessor();
 
     await processor.createGratzMessage(
-      "Очень длинное поздравление с переносом\nстроки и дополнительным текстом для обрезки после пятидесяти символов",
+      "Очень длинное поздравление с переносом\nстроки и дополнительным текстом для проверки обрезки после увеличения лимита preview. Добавляем ещё немного текста, чтобы точно превысить двести символов и убедиться, что в списке появится сокращённая версия сообщения с троеточием в конце.",
     );
 
     const listMessage = await processor.listGratzMessages();

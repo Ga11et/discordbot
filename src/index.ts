@@ -6,11 +6,16 @@ import {
   handleBirthdayCommand,
   handleBirthdayModalSubmit,
 } from "./commands/birthday-handler";
+import { handleKickQueueCommand } from "./commands/kick-queue-handler";
 import {
   ensureBirthdayAccess,
   isPublicBirthdaySubcommand,
   loadBirthdayAccessConfig,
 } from "./commands/birthday-access";
+import {
+  ensureKickQueueAccess,
+  loadKickQueueAccessConfig,
+} from "./commands/kick-queue-access";
 
 const token = process.env.DISCORD_TOKEN;
 if (!token) {
@@ -20,6 +25,7 @@ if (!token) {
 }
 
 const birthdayAccessConfig = loadBirthdayAccessConfig();
+const kickQueueAccessConfig = loadKickQueueAccessConfig();
 
 const client = new Client({
   intents: [
@@ -60,20 +66,36 @@ client.on(Events.InteractionCreate, async (interaction) => {
   }
 
   if (!interaction.isChatInputCommand()) return;
-  if (interaction.commandName !== "bd") return;
+  if (interaction.commandName === "kickqueue") {
+    const hasAccess = await ensureKickQueueAccess(
+      interaction,
+      kickQueueAccessConfig,
+    );
+    if (!hasAccess) {
+      return;
+    }
 
-  const hasAccess = await ensureBirthdayAccess(
-    interaction,
-    birthdayAccessConfig,
-    {
-      requireRole: !isPublicBirthdaySubcommand(interaction),
-    },
-  );
-  if (!hasAccess) {
+    await handleKickQueueCommand(interaction);
     return;
   }
 
-  await handleBirthdayCommand(interaction);
+  if (interaction.commandName === "bd") {
+    const hasAccess = await ensureBirthdayAccess(
+      interaction,
+      birthdayAccessConfig,
+      {
+        requireRole: !isPublicBirthdaySubcommand(interaction),
+      },
+    );
+    if (!hasAccess) {
+      return;
+    }
+
+    await handleBirthdayCommand(interaction);
+    return;
+  }
+
+  return;
 });
 
 async function bootstrap(): Promise<void> {

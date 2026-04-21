@@ -43,6 +43,11 @@ export async function resetGratzMessagesTable(): Promise<void> {
   await testClient("birthday_gratz_messages").truncate();
 }
 
+export async function resetKickQueueTable(): Promise<void> {
+  const testClient = getTestClient();
+  await testClient("kick_queue").truncate();
+}
+
 export async function closeTestDb(): Promise<void> {
   if (!client) return;
   await client.destroy();

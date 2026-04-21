@@ -1,5 +1,11 @@
 import { REST, Routes } from "discord.js";
-import { slashCommandDefinitions } from "./birthday-definition";
+import { slashCommandDefinitions as birthdayCommandDefinitions } from "./birthday-definition";
+import { kickQueueCommandDefinition } from "./kick-queue-definition";
+
+const slashCommandDefinitions = [
+  ...birthdayCommandDefinitions,
+  kickQueueCommandDefinition,
+];
 
 export async function registerSlashCommands(): Promise<void> {
   const token = process.env.DISCORD_TOKEN;
