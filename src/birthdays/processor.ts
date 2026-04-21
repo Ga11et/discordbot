@@ -12,7 +12,7 @@ export interface ListResult {
   entries: ListEntry[];
 }
 
-const GRATZ_LIST_PREVIEW_LIMIT = 50;
+const GRATZ_LIST_PREVIEW_LIMIT = 200;
 
 function sanitizeMultilinePreview(text: string): string {
   return text.replace(/\s+/g, " ").trim();

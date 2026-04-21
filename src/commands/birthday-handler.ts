@@ -1,5 +1,6 @@
 import type {
   ChatInputCommandInteraction,
+  Guild,
   InteractionReplyOptions,
   ModalActionRowComponentBuilder,
   ModalSubmitInteraction,
@@ -16,6 +17,27 @@ import { createBirthdayCommandProcessor } from "../birthdays/processor";
 const processor = createBirthdayCommandProcessor();
 export const GRATZ_MESSAGE_SET_MODAL_ID = "bd:gratzmessage:create";
 const GRATZ_MESSAGE_SET_MODAL_INPUT_ID = "gratzmessage-text";
+
+function normalizeEmojiAliases(text: string, guild: Guild | null): string {
+  if (!guild) {
+    return text;
+  }
+
+  return text.replace(
+    /:([a-zA-Z0-9_]{2,32}):/g,
+    (match, emojiName, offset, source) => {
+      const prevChar = source[offset - 1];
+      const suffix = source.slice(offset + match.length);
+
+      if (prevChar === "<" || /^\d+>/.test(suffix)) {
+        return match;
+      }
+
+      const emoji = guild.emojis.cache.find((item) => item.name === emojiName);
+      return emoji ? emoji.toString() : match;
+    },
+  );
+}
 
 async function respond(
   interaction: ChatInputCommandInteraction,
@@ -124,7 +146,13 @@ export async function handleBirthdayCommand(
     if (subcommand === "gratz") {
       const targetUser = interaction.options.getUser("user", true);
       const message = await processor.gratzUser(targetUser.id);
-      await respond(interaction, message, { ephemeral: false });
+      await respond(
+        interaction,
+        normalizeEmojiAliases(message, interaction.guild),
+        {
+          ephemeral: false,
+        },
+      );
       return;
     }
 
@@ -153,7 +181,8 @@ export async function handleBirthdayModalSubmit(
     const text = interaction.fields.getTextInputValue(
       GRATZ_MESSAGE_SET_MODAL_INPUT_ID,
     );
-    const message = await processor.createGratzMessage(text);
+    const normalizedText = normalizeEmojiAliases(text, interaction.guild);
+    const message = await processor.createGratzMessage(normalizedText);
     await interaction.reply({
       content: message,
       ephemeral: true,
