@@ -66,6 +66,18 @@ export class BirthdayCommandProcessor {
     return `Дата рождения пользователя <@${userIdToUpdate}> обновлена!`;
   }
 
+  async deleteBirthday(targetUserId: string): Promise<string> {
+    const removed = await this.service.deleteBirthday(targetUserId);
+    if (!removed) {
+      throw new BirthdayCommandError(
+        "NOT_FOUND",
+        `Дата рождения пользователя <@${targetUserId}> не найдена`,
+      );
+    }
+
+    return `Дата рождения пользователя <@${targetUserId}> удалена!`;
+  }
+
   async listBirthdays(): Promise<ListResult> {
     const records = await this.service.listBirthdays();
     return {

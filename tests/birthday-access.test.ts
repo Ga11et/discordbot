@@ -110,6 +110,9 @@ describe("birthday access checks", () => {
   });
 
   it("does not mark restricted /bd subcommands as public", () => {
+    const del = createFakeChatInteraction({
+      subcommand: "delete",
+    }).interaction;
     const gratz = createFakeChatInteraction({
       subcommand: "gratz",
     }).interaction;
@@ -118,8 +121,44 @@ describe("birthday access checks", () => {
       subcommandGroup: "gratzmessage",
     }).interaction;
 
+    expect(isPublicBirthdaySubcommand(del)).toBe(false);
     expect(isPublicBirthdaySubcommand(gratz)).toBe(false);
     expect(isPublicBirthdaySubcommand(grouped)).toBe(false);
+  });
+
+  it("allows restricted /bd delete in the configured channel for allowed roles", async () => {
+    const { interaction, reply, followUp } = createFakeChatInteraction({
+      channelId: "channel-1",
+      roleIds: ["role-b"],
+      subcommand: "delete",
+    });
+
+    const allowed = await ensureBirthdayAccess(interaction, accessConfig, {
+      requireRole: !isPublicBirthdaySubcommand(interaction),
+    });
+
+    expect(allowed).toBe(true);
+    expect(reply).not.toHaveBeenCalled();
+    expect(followUp).not.toHaveBeenCalled();
+  });
+
+  it("denies restricted /bd delete in the configured channel without allowed roles", async () => {
+    const { interaction, reply } = createFakeChatInteraction({
+      channelId: "channel-1",
+      roleIds: ["role-x"],
+      subcommand: "delete",
+    });
+
+    const allowed = await ensureBirthdayAccess(interaction, accessConfig, {
+      requireRole: !isPublicBirthdaySubcommand(interaction),
+    });
+
+    expect(allowed).toBe(false);
+    expect(reply).toHaveBeenCalledWith({
+      content:
+        "Команды /bd доступны только в канале <#channel-1> и для ролей: <@&role-a>, <@&role-b>",
+      ephemeral: true,
+    });
   });
 
   it("allows interaction when channel and at least one role match", async () => {

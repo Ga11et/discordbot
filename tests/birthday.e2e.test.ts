@@ -74,6 +74,29 @@ describe("BirthdayCommandProcessor (e2e)", () => {
     expect(message).toContain("05.11.1999");
   });
 
+  it("deletes a stored birthday for the selected user", async () => {
+    const processor = createProcessor();
+
+    await processor.setBirthday(ACTOR_ID, "05.11.1999", OTHER_USER_ID);
+
+    const confirmation = await processor.deleteBirthday(OTHER_USER_ID);
+    expect(confirmation).toBe(
+      `Дата рождения пользователя <@${OTHER_USER_ID}> удалена!`,
+    );
+
+    await expect(() =>
+      processor.showOwnBirthday(OTHER_USER_ID),
+    ).rejects.toThrow("Дата рождения не найдена. Установи её командой /bd set");
+  });
+
+  it("fails when deleting a birthday that does not exist", async () => {
+    const processor = createProcessor();
+
+    await expect(() => processor.deleteBirthday(OTHER_USER_ID)).rejects.toThrow(
+      `Дата рождения пользователя <@${OTHER_USER_ID}> не найдена`,
+    );
+  });
+
   it("lists birthdays sorted by calendar order", async () => {
     const processor = createProcessor();
 
@@ -134,6 +157,99 @@ describe("BirthdayCommandProcessor (e2e)", () => {
 
     const fullMessage = await processor.getGratzMessage(idMatch![1]);
     expect(fullMessage).toContain("С днём рождения! 🎉");
+  });
+
+  it("returns the same gratz message id that is stored in the database", async () => {
+    const processor = createProcessor();
+    const client = getTestClient();
+
+    const createResult = await processor.createGratzMessage(
+      "Проверка совпадения id сообщения",
+    );
+    const returnedId = Number(createResult.match(/(\d+)/)?.[1]);
+
+    expect(returnedId).toBeGreaterThan(0);
+
+    const row = await client("birthday_gratz_messages")
+      .select("id")
+      .where("message_text", "Проверка совпадения id сообщения")
+      .first<{ id: number }>();
+
+    expect(row).toBeDefined();
+    expect(Number(row?.id)).toBe(returnedId);
+  });
+
+  it("keeps gratz message ids correct after deleting the last message and creating a new one", async () => {
+    const processor = createProcessor();
+    const client = getTestClient();
+
+    const firstText = "Первое сообщение для проверки id";
+    const secondText = "Второе сообщение для проверки id";
+    const thirdText = "Третье сообщение для проверки id";
+    const fourthText = "Новое сообщение после удаления последнего";
+
+    const firstId = Number(
+      (await processor.createGratzMessage(firstText)).match(/(\d+)/)?.[1],
+    );
+    const secondId = Number(
+      (await processor.createGratzMessage(secondText)).match(/(\d+)/)?.[1],
+    );
+    const thirdId = Number(
+      (await processor.createGratzMessage(thirdText)).match(/(\d+)/)?.[1],
+    );
+
+    const rowsAfterCreate = await client("birthday_gratz_messages")
+      .select("id", "message_text")
+      .orderBy("id", "asc");
+
+    expect(rowsAfterCreate).toHaveLength(3);
+    expect(rowsAfterCreate.map((row) => Number(row.id))).toEqual([
+      firstId,
+      secondId,
+      thirdId,
+    ]);
+    expect(rowsAfterCreate.map((row) => row.message_text)).toEqual([
+      firstText,
+      secondText,
+      thirdText,
+    ]);
+
+    await processor.deleteGratzMessage(String(thirdId));
+
+    const rowsAfterDelete = await client("birthday_gratz_messages")
+      .select("id", "message_text")
+      .orderBy("id", "asc");
+
+    expect(rowsAfterDelete).toHaveLength(2);
+    expect(rowsAfterDelete.map((row) => Number(row.id))).toEqual([
+      firstId,
+      secondId,
+    ]);
+    expect(rowsAfterDelete.map((row) => row.message_text)).toEqual([
+      firstText,
+      secondText,
+    ]);
+
+    const fourthId = Number(
+      (await processor.createGratzMessage(fourthText)).match(/(\d+)/)?.[1],
+    );
+
+    const finalRows = await client("birthday_gratz_messages")
+      .select("id", "message_text")
+      .orderBy("id", "asc");
+
+    expect(finalRows).toHaveLength(3);
+    expect(finalRows.map((row) => Number(row.id))).toEqual([
+      firstId,
+      secondId,
+      fourthId,
+    ]);
+    expect(finalRows.map((row) => row.message_text)).toEqual([
+      firstText,
+      secondText,
+      fourthText,
+    ]);
+    expect(fourthId).toBeGreaterThan(thirdId);
   });
 
   it("lists gratz messages with preview trimmed to the configured limit", async () => {

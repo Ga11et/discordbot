@@ -61,6 +61,14 @@ export class BirthdayService {
     return mapRowToRecord(row);
   }
 
+  async deleteBirthday(discordUserId: string): Promise<boolean> {
+    const affectedRows = await this.client(TABLE_NAME)
+      .where("discord_user_id", discordUserId)
+      .del();
+
+    return affectedRows > 0;
+  }
+
   async listBirthdays(): Promise<BirthdayRecord[]> {
     const rows = await this.client<BirthdayRow>(TABLE_NAME)
       .select("discord_user_id", "birthday_date")

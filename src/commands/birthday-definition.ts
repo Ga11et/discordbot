@@ -36,6 +36,17 @@ const birthdayBuilder = new SlashCommandBuilder()
   )
   .addSubcommand((sub) =>
     sub
+      .setName("delete")
+      .setDescription("Удалить сохранённую дату рождения пользователя")
+      .addUserOption((option) =>
+        option
+          .setName("user")
+          .setDescription("У кого удалить дату рождения")
+          .setRequired(true),
+      ),
+  )
+  .addSubcommand((sub) =>
+    sub
       .setName("gratz")
       .setDescription("Поздравить пользователя случайным сообщением")
       .addUserOption((option) =>

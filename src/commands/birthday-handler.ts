@@ -126,6 +126,13 @@ export async function handleBirthdayCommand(
       return;
     }
 
+    if (subcommand === "delete") {
+      const targetUser = interaction.options.getUser("user", true);
+      const message = await processor.deleteBirthday(targetUser.id);
+      await respond(interaction, message, { ephemeral: true });
+      return;
+    }
+
     if (subcommand === "list") {
       const list = await processor.listBirthdays();
       if (list.entries.length === 0) {
