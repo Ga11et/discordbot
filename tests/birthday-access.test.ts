@@ -61,19 +61,19 @@ function createFakeModalInteractionWithRoleCache(
 }
 
 const accessConfig: BirthdayAccessConfig = {
-  allowedChannelId: "channel-1",
+  allowedChannelIds: ["channel-1", "channel-2"],
   allowedRoleIds: ["role-a", "role-b"],
 };
 
 describe("loadBirthdayAccessConfig", () => {
-  it("parses channel id and list of role ids", () => {
+  it("parses channel ids and list of role ids", () => {
     const config = loadBirthdayAccessConfig({
-      BD_ALLOWED_CHANNEL_ID: "  channel-1  ",
+      BD_ALLOWED_CHANNEL_ID: "  channel-1, channel-2, channel-1 ,, ",
       BD_ALLOWED_ROLE_IDS: " role-a, role-b,role-a ,, ",
     });
 
     expect(config).toEqual({
-      allowedChannelId: "channel-1",
+      allowedChannelIds: ["channel-1", "channel-2"],
       allowedRoleIds: ["role-a", "role-b"],
     });
   });
@@ -82,6 +82,15 @@ describe("loadBirthdayAccessConfig", () => {
     expect(() =>
       loadBirthdayAccessConfig({ BD_ALLOWED_ROLE_IDS: "role-a" }),
     ).toThrow("BD_ALLOWED_CHANNEL_ID is not set");
+  });
+
+  it("throws when channel ids are empty after parsing", () => {
+    expect(() =>
+      loadBirthdayAccessConfig({
+        BD_ALLOWED_CHANNEL_ID: " , , ",
+        BD_ALLOWED_ROLE_IDS: "role-a",
+      }),
+    ).toThrow("BD_ALLOWED_CHANNEL_ID must contain at least one channel id");
   });
 
   it("throws when role ids are missing or empty", () => {
@@ -128,7 +137,7 @@ describe("birthday access checks", () => {
 
   it("allows restricted /bd delete in the configured channel for allowed roles", async () => {
     const { interaction, reply, followUp } = createFakeChatInteraction({
-      channelId: "channel-1",
+      channelId: "channel-2",
       roleIds: ["role-b"],
       subcommand: "delete",
     });
@@ -156,12 +165,12 @@ describe("birthday access checks", () => {
     expect(allowed).toBe(false);
     expect(reply).toHaveBeenCalledWith({
       content:
-        "Команды /bd доступны только в канале <#channel-1> и для ролей: <@&role-a>, <@&role-b>",
+        "Команды /bd доступны только в каналах: <#channel-1>, <#channel-2> и для ролей: <@&role-a>, <@&role-b>",
       ephemeral: true,
     });
   });
 
-  it("allows interaction when channel and at least one role match", async () => {
+  it("allows interaction when any allowed channel and at least one role match", async () => {
     const { interaction, reply, followUp } = createFakeChatInteraction({
       channelId: "channel-1",
       roleIds: ["role-x", "role-b"],
@@ -195,7 +204,7 @@ describe("birthday access checks", () => {
 
   it("denies interaction in wrong channel with ephemeral reply", async () => {
     const { interaction, reply } = createFakeChatInteraction({
-      channelId: "channel-2",
+      channelId: "channel-3",
       roleIds: ["role-a"],
     });
 
@@ -204,7 +213,7 @@ describe("birthday access checks", () => {
     expect(allowed).toBe(false);
     expect(reply).toHaveBeenCalledWith({
       content:
-        "Команды /bd доступны только в канале <#channel-1> и для ролей: <@&role-a>, <@&role-b>",
+        "Команды /bd доступны только в каналах: <#channel-1>, <#channel-2> и для ролей: <@&role-a>, <@&role-b>",
       ephemeral: true,
     });
   });
@@ -223,7 +232,7 @@ describe("birthday access checks", () => {
 
   it("denies public subcommand outside allowed channel with channel-only message", async () => {
     const { interaction, reply } = createFakeChatInteraction({
-      channelId: "channel-2",
+      channelId: "channel-3",
       roleIds: [],
       subcommand: "me",
     });
@@ -234,14 +243,15 @@ describe("birthday access checks", () => {
 
     expect(allowed).toBe(false);
     expect(reply).toHaveBeenCalledWith({
-      content: "Команды /bd доступны только в канале <#channel-1>",
+      content:
+        "Команды /bd доступны только в каналах: <#channel-1>, <#channel-2>",
       ephemeral: true,
     });
   });
 
   it("uses followUp if interaction already replied", async () => {
     const { interaction, reply, followUp } = createFakeChatInteraction({
-      channelId: "channel-2",
+      channelId: "channel-3",
       roleIds: ["role-a"],
       replied: true,
     });

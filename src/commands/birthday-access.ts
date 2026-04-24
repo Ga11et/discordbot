@@ -5,7 +5,7 @@ import type {
 } from "discord.js";
 
 export interface BirthdayAccessConfig {
-  allowedChannelId: string;
+  allowedChannelIds: string[];
   allowedRoleIds: string[];
 }
 
@@ -43,12 +43,40 @@ function parseRoleIds(rawRoleIds: string): string[] {
   ];
 }
 
+function parseChannelIds(rawChannelIds: string): string[] {
+  return [
+    ...new Set(
+      rawChannelIds
+        .split(",")
+        .map((id) => id.trim())
+        .filter(Boolean),
+    ),
+  ];
+}
+
+function formatAllowedChannels(channelIds: string[]): string {
+  const channelMentions = channelIds.map((channelId) => `<#${channelId}>`);
+
+  if (channelMentions.length === 1) {
+    return `в канале ${channelMentions[0]}`;
+  }
+
+  return `в каналах: ${channelMentions.join(", ")}`;
+}
+
 export function loadBirthdayAccessConfig(
   env: NodeJS.ProcessEnv = process.env,
 ): BirthdayAccessConfig {
-  const allowedChannelId = env.BD_ALLOWED_CHANNEL_ID?.trim();
-  if (!allowedChannelId) {
+  const allowedChannelIdsRaw = env.BD_ALLOWED_CHANNEL_ID?.trim();
+  if (!allowedChannelIdsRaw) {
     throw new Error("BD_ALLOWED_CHANNEL_ID is not set");
+  }
+
+  const allowedChannelIds = parseChannelIds(allowedChannelIdsRaw);
+  if (allowedChannelIds.length === 0) {
+    throw new Error(
+      "BD_ALLOWED_CHANNEL_ID must contain at least one channel id",
+    );
   }
 
   const allowedRoleIdsRaw = env.BD_ALLOWED_ROLE_IDS?.trim();
@@ -62,7 +90,7 @@ export function loadBirthdayAccessConfig(
   }
 
   return {
-    allowedChannelId,
+    allowedChannelIds,
     allowedRoleIds,
   };
 }
@@ -99,7 +127,8 @@ export function hasBirthdayAccess(
     return false;
   }
 
-  if (interaction.channelId !== config.allowedChannelId) {
+  const channelId = interaction.channelId;
+  if (!channelId || !config.allowedChannelIds.includes(channelId)) {
     return false;
   }
 
@@ -116,11 +145,11 @@ function accessDeniedMessage(
   policy: BirthdayAccessPolicy,
 ): string {
   if (!policy.requireRole) {
-    return `Команды /bd доступны только в канале <#${config.allowedChannelId}>`;
+    return `Команды /bd доступны только ${formatAllowedChannels(config.allowedChannelIds)}`;
   }
 
   const roleMentions = config.allowedRoleIds.map((roleId) => `<@&${roleId}>`);
-  return `Команды /bd доступны только в канале <#${config.allowedChannelId}> и для ролей: ${roleMentions.join(", ")}`;
+  return `Команды /bd доступны только ${formatAllowedChannels(config.allowedChannelIds)} и для ролей: ${roleMentions.join(", ")}`;
 }
 
 async function replyToInteraction(
