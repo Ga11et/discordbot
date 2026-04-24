@@ -43,6 +43,12 @@ const birthdayBuilder = new SlashCommandBuilder()
           .setName("user")
           .setDescription("Кого поздравить")
           .setRequired(true),
+      )
+      .addStringOption((option) =>
+        option
+          .setName("messageid")
+          .setDescription("Идентификатор поздравления")
+          .setRequired(false),
       ),
   )
   .addSubcommandGroup((group) =>

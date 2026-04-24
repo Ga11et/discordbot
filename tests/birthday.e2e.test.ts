@@ -184,6 +184,34 @@ describe("BirthdayCommandProcessor (e2e)", () => {
     expect(result).toContain("желаю счастья и здоровья!");
   });
 
+  it("builds public gratz message from the requested message id", async () => {
+    const processor = createProcessor();
+
+    await processor.createGratzMessage("[user], случайное поздравление");
+    const createResult = await processor.createGratzMessage(
+      "[user], поздравляю именно этим сообщением!",
+    );
+    const messageId = createResult.match(/(\d+)/)?.[1];
+
+    expect(messageId).toBeDefined();
+
+    const result = await processor.gratzUser(OTHER_USER_ID, messageId);
+
+    expect(result).toContain(`<@${OTHER_USER_ID}>,`);
+    expect(result).toContain("поздравляю именно этим сообщением!");
+    expect(result).not.toContain("случайное поздравление");
+  });
+
+  it("fails gratz by specific id when the message does not exist", async () => {
+    const processor = createProcessor();
+
+    await processor.createGratzMessage("[user], существующее поздравление");
+
+    await expect(() =>
+      processor.gratzUser(OTHER_USER_ID, "999999"),
+    ).rejects.toThrow("Поздравление с таким id не найдено");
+  });
+
   it("fails gratz operations when no message templates are stored", async () => {
     const processor = createProcessor();
 

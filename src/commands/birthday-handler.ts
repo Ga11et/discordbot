@@ -145,7 +145,9 @@ export async function handleBirthdayCommand(
 
     if (subcommand === "gratz") {
       const targetUser = interaction.options.getUser("user", true);
-      const message = await processor.gratzUser(targetUser.id);
+      const messageId =
+        interaction.options.getString("messageid", false) ?? undefined;
+      const message = await processor.gratzUser(targetUser.id, messageId);
       await respond(
         interaction,
         normalizeEmojiAliases(message, interaction.guild),

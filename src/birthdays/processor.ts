@@ -78,10 +78,18 @@ export class BirthdayCommandProcessor {
     };
   }
 
-  async gratzUser(targetUserId: string): Promise<string> {
-    const record = await this.gratz.getRandomGratzMessage();
+  async gratzUser(
+    targetUserId: string,
+    messageIdInput?: string,
+  ): Promise<string> {
+    const record = messageIdInput
+      ? await this.gratz.getGratzMessage(parseMessageId(messageIdInput))
+      : await this.gratz.getRandomGratzMessage();
+
     if (!record) {
-      throw new BirthdayCommandError("GRATZ_MESSAGES_EMPTY");
+      throw new BirthdayCommandError(
+        messageIdInput ? "GRATZ_MESSAGE_ID_NOT_FOUND" : "GRATZ_MESSAGES_EMPTY",
+      );
     }
 
     return record.text.replaceAll("[user]", `<@${targetUserId}>`);
