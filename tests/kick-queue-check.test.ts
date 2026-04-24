@@ -1,9 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { MessageFlags, type ButtonInteraction, type User } from "discord.js";
-import {
-  handleKickQueueButtonInteraction,
-  sendKickQueueCheckMessage,
-} from "../src/commands/kick-queue-check";
+import kickQueueCheck from "../src/commands/kick-queue-check";
 import type { KickQueueService } from "../src/members/kick-queue-service";
 
 function createServiceMock(): KickQueueService {
@@ -41,7 +38,7 @@ describe("sendKickQueueCheckMessage", () => {
       send,
     } as unknown as User;
 
-    await sendKickQueueCheckMessage(user, "guild-1");
+    await kickQueueCheck.sendCheckMessage(user, "guild-1");
 
     expect(send).toHaveBeenCalledTimes(1);
     const payload = vi.mocked(send).mock.calls[0][0];
@@ -71,7 +68,7 @@ describe("handleKickQueueButtonInteraction", () => {
       customId: "birthday:other",
     });
 
-    const handled = await handleKickQueueButtonInteraction(
+    const handled = await kickQueueCheck.handleButtonInteraction(
       interaction,
       service,
     );
@@ -89,7 +86,7 @@ describe("handleKickQueueButtonInteraction", () => {
       userId: "user-1",
     });
 
-    const handled = await handleKickQueueButtonInteraction(
+    const handled = await kickQueueCheck.handleButtonInteraction(
       interaction,
       service,
     );
@@ -114,7 +111,7 @@ describe("handleKickQueueButtonInteraction", () => {
       userId: "user-1",
     });
 
-    const handled = await handleKickQueueButtonInteraction(
+    const handled = await kickQueueCheck.handleButtonInteraction(
       interaction,
       service,
     );
@@ -144,7 +141,7 @@ describe("handleKickQueueButtonInteraction", () => {
       userId: "user-2",
     });
 
-    const handled = await handleKickQueueButtonInteraction(
+    const handled = await kickQueueCheck.handleButtonInteraction(
       interaction,
       service,
     );
@@ -165,7 +162,7 @@ describe("handleKickQueueButtonInteraction", () => {
       userId: "user-1",
     });
 
-    const handled = await handleKickQueueButtonInteraction(
+    const handled = await kickQueueCheck.handleButtonInteraction(
       interaction,
       service,
     );

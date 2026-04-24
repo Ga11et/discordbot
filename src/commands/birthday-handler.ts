@@ -53,7 +53,7 @@ async function respond(
   }
 }
 
-export async function handleBirthdayCommand(
+async function handleCommand(
   interaction: ChatInputCommandInteraction,
 ): Promise<void> {
   try {
@@ -179,7 +179,7 @@ export async function handleBirthdayCommand(
   }
 }
 
-export async function handleBirthdayModalSubmit(
+async function handleModalSubmit(
   interaction: ModalSubmitInteraction,
 ): Promise<boolean> {
   if (interaction.customId !== GRATZ_MESSAGE_SET_MODAL_ID) {
@@ -214,3 +214,11 @@ export async function handleBirthdayModalSubmit(
     return true;
   }
 }
+
+const birthdayHandler = {
+  GRATZ_MESSAGE_SET_MODAL_ID,
+  handleCommand,
+  handleModalSubmit,
+};
+
+export default birthdayHandler;

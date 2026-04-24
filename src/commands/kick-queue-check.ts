@@ -106,10 +106,7 @@ function buildKickQueueMessageComponents(
   return [row];
 }
 
-export async function sendKickQueueCheckMessage(
-  user: User,
-  guildId: string,
-): Promise<void> {
+async function sendCheckMessage(user: User, guildId: string): Promise<void> {
   const payload: MessageCreateOptions = {
     content: buildKickQueueMessageContent(),
     components: buildKickQueueMessageComponents(guildId, user.id),
@@ -118,7 +115,7 @@ export async function sendKickQueueCheckMessage(
   await user.send(payload);
 }
 
-export async function handleKickQueueButtonInteraction(
+async function handleButtonInteraction(
   interaction: ButtonInteraction,
   service: KickQueueService = kickQueueService,
 ): Promise<boolean> {
@@ -160,3 +157,10 @@ export async function handleKickQueueButtonInteraction(
   });
   return true;
 }
+
+const kickQueueCheck = {
+  handleButtonInteraction,
+  sendCheckMessage,
+};
+
+export default kickQueueCheck;

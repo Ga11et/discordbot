@@ -3,11 +3,7 @@ import type {
   ChatInputCommandInteraction,
   ModalSubmitInteraction,
 } from "discord.js";
-import {
-  ensureBirthdayAccess,
-  hasBirthdayAccess,
-  isPublicBirthdaySubcommand,
-  loadBirthdayAccessConfig,
+import birthdayAccess, {
   type BirthdayAccessConfig,
 } from "../src/commands/birthday-access";
 
@@ -67,7 +63,7 @@ const accessConfig: BirthdayAccessConfig = {
 
 describe("loadBirthdayAccessConfig", () => {
   it("parses channel ids and list of role ids", () => {
-    const config = loadBirthdayAccessConfig({
+    const config = birthdayAccess.loadConfig({
       BD_ALLOWED_CHANNEL_ID: "  channel-1, channel-2, channel-1 ,, ",
       BD_ALLOWED_ROLE_IDS: " role-a, role-b,role-a ,, ",
     });
@@ -80,13 +76,13 @@ describe("loadBirthdayAccessConfig", () => {
 
   it("throws when channel id is missing", () => {
     expect(() =>
-      loadBirthdayAccessConfig({ BD_ALLOWED_ROLE_IDS: "role-a" }),
+      birthdayAccess.loadConfig({ BD_ALLOWED_ROLE_IDS: "role-a" }),
     ).toThrow("BD_ALLOWED_CHANNEL_ID is not set");
   });
 
   it("throws when channel ids are empty after parsing", () => {
     expect(() =>
-      loadBirthdayAccessConfig({
+      birthdayAccess.loadConfig({
         BD_ALLOWED_CHANNEL_ID: " , , ",
         BD_ALLOWED_ROLE_IDS: "role-a",
       }),
@@ -95,11 +91,11 @@ describe("loadBirthdayAccessConfig", () => {
 
   it("throws when role ids are missing or empty", () => {
     expect(() =>
-      loadBirthdayAccessConfig({ BD_ALLOWED_CHANNEL_ID: "channel-1" }),
+      birthdayAccess.loadConfig({ BD_ALLOWED_CHANNEL_ID: "channel-1" }),
     ).toThrow("BD_ALLOWED_ROLE_IDS is not set");
 
     expect(() =>
-      loadBirthdayAccessConfig({
+      birthdayAccess.loadConfig({
         BD_ALLOWED_CHANNEL_ID: "channel-1",
         BD_ALLOWED_ROLE_IDS: " , , ",
       }),
@@ -113,9 +109,9 @@ describe("birthday access checks", () => {
     const set = createFakeChatInteraction({ subcommand: "set" }).interaction;
     const list = createFakeChatInteraction({ subcommand: "list" }).interaction;
 
-    expect(isPublicBirthdaySubcommand(me)).toBe(true);
-    expect(isPublicBirthdaySubcommand(set)).toBe(true);
-    expect(isPublicBirthdaySubcommand(list)).toBe(true);
+    expect(birthdayAccess.isPublicSubcommand(me)).toBe(true);
+    expect(birthdayAccess.isPublicSubcommand(set)).toBe(true);
+    expect(birthdayAccess.isPublicSubcommand(list)).toBe(true);
   });
 
   it("does not mark restricted /bd subcommands as public", () => {
@@ -130,9 +126,9 @@ describe("birthday access checks", () => {
       subcommandGroup: "gratzmessage",
     }).interaction;
 
-    expect(isPublicBirthdaySubcommand(del)).toBe(false);
-    expect(isPublicBirthdaySubcommand(gratz)).toBe(false);
-    expect(isPublicBirthdaySubcommand(grouped)).toBe(false);
+    expect(birthdayAccess.isPublicSubcommand(del)).toBe(false);
+    expect(birthdayAccess.isPublicSubcommand(gratz)).toBe(false);
+    expect(birthdayAccess.isPublicSubcommand(grouped)).toBe(false);
   });
 
   it("allows restricted /bd delete in the configured channel for allowed roles", async () => {
@@ -142,9 +138,13 @@ describe("birthday access checks", () => {
       subcommand: "delete",
     });
 
-    const allowed = await ensureBirthdayAccess(interaction, accessConfig, {
-      requireRole: !isPublicBirthdaySubcommand(interaction),
-    });
+    const allowed = await birthdayAccess.ensureAccess(
+      interaction,
+      accessConfig,
+      {
+        requireRole: !birthdayAccess.isPublicSubcommand(interaction),
+      },
+    );
 
     expect(allowed).toBe(true);
     expect(reply).not.toHaveBeenCalled();
@@ -158,9 +158,13 @@ describe("birthday access checks", () => {
       subcommand: "delete",
     });
 
-    const allowed = await ensureBirthdayAccess(interaction, accessConfig, {
-      requireRole: !isPublicBirthdaySubcommand(interaction),
-    });
+    const allowed = await birthdayAccess.ensureAccess(
+      interaction,
+      accessConfig,
+      {
+        requireRole: !birthdayAccess.isPublicSubcommand(interaction),
+      },
+    );
 
     expect(allowed).toBe(false);
     expect(reply).toHaveBeenCalledWith({
@@ -176,9 +180,12 @@ describe("birthday access checks", () => {
       roleIds: ["role-x", "role-b"],
     });
 
-    expect(hasBirthdayAccess(interaction, accessConfig)).toBe(true);
+    expect(birthdayAccess.hasAccess(interaction, accessConfig)).toBe(true);
 
-    const allowed = await ensureBirthdayAccess(interaction, accessConfig);
+    const allowed = await birthdayAccess.ensureAccess(
+      interaction,
+      accessConfig,
+    );
     expect(allowed).toBe(true);
     expect(reply).not.toHaveBeenCalled();
     expect(followUp).not.toHaveBeenCalled();
@@ -191,12 +198,18 @@ describe("birthday access checks", () => {
     });
 
     expect(
-      hasBirthdayAccess(interaction, accessConfig, { requireRole: false }),
+      birthdayAccess.hasAccess(interaction, accessConfig, {
+        requireRole: false,
+      }),
     ).toBe(true);
 
-    const allowed = await ensureBirthdayAccess(interaction, accessConfig, {
-      requireRole: false,
-    });
+    const allowed = await birthdayAccess.ensureAccess(
+      interaction,
+      accessConfig,
+      {
+        requireRole: false,
+      },
+    );
     expect(allowed).toBe(true);
     expect(reply).not.toHaveBeenCalled();
     expect(followUp).not.toHaveBeenCalled();
@@ -208,7 +221,10 @@ describe("birthday access checks", () => {
       roleIds: ["role-a"],
     });
 
-    const allowed = await ensureBirthdayAccess(interaction, accessConfig);
+    const allowed = await birthdayAccess.ensureAccess(
+      interaction,
+      accessConfig,
+    );
 
     expect(allowed).toBe(false);
     expect(reply).toHaveBeenCalledWith({
@@ -224,7 +240,10 @@ describe("birthday access checks", () => {
       roleIds: ["role-a"],
     });
 
-    const allowed = await ensureBirthdayAccess(interaction, accessConfig);
+    const allowed = await birthdayAccess.ensureAccess(
+      interaction,
+      accessConfig,
+    );
 
     expect(allowed).toBe(false);
     expect(reply).toHaveBeenCalledTimes(1);
@@ -237,9 +256,13 @@ describe("birthday access checks", () => {
       subcommand: "me",
     });
 
-    const allowed = await ensureBirthdayAccess(interaction, accessConfig, {
-      requireRole: false,
-    });
+    const allowed = await birthdayAccess.ensureAccess(
+      interaction,
+      accessConfig,
+      {
+        requireRole: false,
+      },
+    );
 
     expect(allowed).toBe(false);
     expect(reply).toHaveBeenCalledWith({
@@ -256,7 +279,10 @@ describe("birthday access checks", () => {
       replied: true,
     });
 
-    const allowed = await ensureBirthdayAccess(interaction, accessConfig);
+    const allowed = await birthdayAccess.ensureAccess(
+      interaction,
+      accessConfig,
+    );
 
     expect(allowed).toBe(false);
     expect(reply).not.toHaveBeenCalled();
@@ -269,6 +295,6 @@ describe("birthday access checks", () => {
       "role-b",
     ]);
 
-    expect(hasBirthdayAccess(modalInteraction, accessConfig)).toBe(true);
+    expect(birthdayAccess.hasAccess(modalInteraction, accessConfig)).toBe(true);
   });
 });

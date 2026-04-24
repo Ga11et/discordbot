@@ -1,22 +1,12 @@
 import "dotenv/config";
 import { Client, Events, GatewayIntentBits, type Message } from "discord.js";
 import { ensureDatabaseConnection, runMigrations } from "./db";
-import { registerSlashCommands } from "./commands/register";
-import {
-  handleBirthdayCommand,
-  handleBirthdayModalSubmit,
-} from "./commands/birthday-handler";
-import { handleKickQueueCommand } from "./commands/kick-queue-handler";
-import { handleKickQueueButtonInteraction } from "./commands/kick-queue-check";
-import {
-  ensureBirthdayAccess,
-  isPublicBirthdaySubcommand,
-  loadBirthdayAccessConfig,
-} from "./commands/birthday-access";
-import {
-  ensureKickQueueAccess,
-  loadKickQueueAccessConfig,
-} from "./commands/kick-queue-access";
+import commandRegister from "./commands/register";
+import birthdayHandler from "./commands/birthday-handler";
+import kickQueueHandler from "./commands/kick-queue-handler";
+import kickQueueCheck from "./commands/kick-queue-check";
+import birthdayAccess from "./commands/birthday-access";
+import kickQueueAccess from "./commands/kick-queue-access";
 
 const token = process.env.DISCORD_TOKEN;
 if (!token) {
@@ -25,8 +15,8 @@ if (!token) {
   );
 }
 
-const birthdayAccessConfig = loadBirthdayAccessConfig();
-const kickQueueAccessConfig = loadKickQueueAccessConfig();
+const birthdayAccessConfig = birthdayAccess.loadConfig();
+const kickQueueAccessConfig = kickQueueAccess.loadConfig();
 
 const client = new Client({
   intents: [
@@ -51,7 +41,7 @@ client.on(Events.MessageCreate, (message: Message) => {
 client.on(Events.InteractionCreate, async (interaction) => {
   if (interaction.isModalSubmit()) {
     if (interaction.customId.startsWith("bd:")) {
-      const hasAccess = await ensureBirthdayAccess(
+      const hasAccess = await birthdayAccess.ensureAccess(
         interaction,
         birthdayAccessConfig,
       );
@@ -60,14 +50,14 @@ client.on(Events.InteractionCreate, async (interaction) => {
       }
     }
 
-    const handled = await handleBirthdayModalSubmit(interaction);
+    const handled = await birthdayHandler.handleModalSubmit(interaction);
     if (handled) {
       return;
     }
   }
 
   if (interaction.isButton()) {
-    const handled = await handleKickQueueButtonInteraction(interaction);
+    const handled = await kickQueueCheck.handleButtonInteraction(interaction);
     if (handled) {
       return;
     }
@@ -75,7 +65,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
   if (!interaction.isChatInputCommand()) return;
   if (interaction.commandName === "kickqueue") {
-    const hasAccess = await ensureKickQueueAccess(
+    const hasAccess = await kickQueueAccess.ensureAccess(
       interaction,
       kickQueueAccessConfig,
     );
@@ -83,23 +73,23 @@ client.on(Events.InteractionCreate, async (interaction) => {
       return;
     }
 
-    await handleKickQueueCommand(interaction);
+    await kickQueueHandler.handleCommand(interaction);
     return;
   }
 
   if (interaction.commandName === "bd") {
-    const hasAccess = await ensureBirthdayAccess(
+    const hasAccess = await birthdayAccess.ensureAccess(
       interaction,
       birthdayAccessConfig,
       {
-        requireRole: !isPublicBirthdaySubcommand(interaction),
+        requireRole: !birthdayAccess.isPublicSubcommand(interaction),
       },
     );
     if (!hasAccess) {
       return;
     }
 
-    await handleBirthdayCommand(interaction);
+    await birthdayHandler.handleCommand(interaction);
     return;
   }
 
@@ -109,7 +99,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
 async function bootstrap(): Promise<void> {
   await ensureDatabaseConnection();
   await runMigrations();
-  await registerSlashCommands();
+  await commandRegister.register();
   await client.login(token);
 }
 

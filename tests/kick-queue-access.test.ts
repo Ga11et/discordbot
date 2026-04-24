@@ -1,9 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { MessageFlags, type ChatInputCommandInteraction } from "discord.js";
-import {
-  ensureKickQueueAccess,
-  hasKickQueueAccess,
-  loadKickQueueAccessConfig,
+import kickQueueAccess, {
   type KickQueueAccessConfig,
 } from "../src/commands/kick-queue-access";
 
@@ -39,7 +36,7 @@ const accessConfig: KickQueueAccessConfig = {
 
 describe("loadKickQueueAccessConfig", () => {
   it("parses channel id and list of role ids", () => {
-    const config = loadKickQueueAccessConfig({
+    const config = kickQueueAccess.loadConfig({
       BD_ALLOWED_CHANNEL_ID: "  channel-1  ",
       BD_ALLOWED_ROLE_IDS: " role-a, role-b,role-a ,, ",
     });
@@ -52,17 +49,17 @@ describe("loadKickQueueAccessConfig", () => {
 
   it("throws when channel id is missing", () => {
     expect(() =>
-      loadKickQueueAccessConfig({ BD_ALLOWED_ROLE_IDS: "role-a" }),
+      kickQueueAccess.loadConfig({ BD_ALLOWED_ROLE_IDS: "role-a" }),
     ).toThrow("BD_ALLOWED_CHANNEL_ID is not set");
   });
 
   it("throws when role ids are missing or empty", () => {
     expect(() =>
-      loadKickQueueAccessConfig({ BD_ALLOWED_CHANNEL_ID: "channel-1" }),
+      kickQueueAccess.loadConfig({ BD_ALLOWED_CHANNEL_ID: "channel-1" }),
     ).toThrow("BD_ALLOWED_ROLE_IDS is not set");
 
     expect(() =>
-      loadKickQueueAccessConfig({
+      kickQueueAccess.loadConfig({
         BD_ALLOWED_CHANNEL_ID: "channel-1",
         BD_ALLOWED_ROLE_IDS: " , , ",
       }),
@@ -77,9 +74,12 @@ describe("kickqueue access checks", () => {
       roleIds: ["role-x", "role-b"],
     });
 
-    expect(hasKickQueueAccess(interaction, accessConfig)).toBe(true);
+    expect(kickQueueAccess.hasAccess(interaction, accessConfig)).toBe(true);
 
-    const allowed = await ensureKickQueueAccess(interaction, accessConfig);
+    const allowed = await kickQueueAccess.ensureAccess(
+      interaction,
+      accessConfig,
+    );
     expect(allowed).toBe(true);
     expect(reply).not.toHaveBeenCalled();
     expect(followUp).not.toHaveBeenCalled();
@@ -91,7 +91,10 @@ describe("kickqueue access checks", () => {
       roleIds: ["role-a"],
     });
 
-    const allowed = await ensureKickQueueAccess(interaction, accessConfig);
+    const allowed = await kickQueueAccess.ensureAccess(
+      interaction,
+      accessConfig,
+    );
 
     expect(allowed).toBe(false);
     expect(reply).toHaveBeenCalledWith({
@@ -107,7 +110,10 @@ describe("kickqueue access checks", () => {
       roleIds: ["role-x"],
     });
 
-    const allowed = await ensureKickQueueAccess(interaction, accessConfig);
+    const allowed = await kickQueueAccess.ensureAccess(
+      interaction,
+      accessConfig,
+    );
 
     expect(allowed).toBe(false);
     expect(reply).toHaveBeenCalledTimes(1);
@@ -120,7 +126,10 @@ describe("kickqueue access checks", () => {
       replied: true,
     });
 
-    const allowed = await ensureKickQueueAccess(interaction, accessConfig);
+    const allowed = await kickQueueAccess.ensureAccess(
+      interaction,
+      accessConfig,
+    );
 
     expect(allowed).toBe(false);
     expect(reply).not.toHaveBeenCalled();

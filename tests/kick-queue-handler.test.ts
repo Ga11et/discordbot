@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { MessageFlags, type ChatInputCommandInteraction } from "discord.js";
-import { handleKickQueueCommand } from "../src/commands/kick-queue-handler";
+import kickQueueHandler from "../src/commands/kick-queue-handler";
 import type { KickQueueService } from "../src/members/kick-queue-service";
 
 interface FakeKickQueueInteractionOptions {
@@ -52,7 +52,7 @@ describe("handleKickQueueCommand", () => {
       guildId: null,
     });
 
-    await handleKickQueueCommand(interaction, service);
+    await kickQueueHandler.handleCommand(interaction, service);
 
     expect(reply).toHaveBeenCalledWith({
       content: "Команда доступна только на сервере",
@@ -71,7 +71,11 @@ describe("handleKickQueueCommand", () => {
       },
     );
 
-    await handleKickQueueCommand(interaction, service, sendCheckMessage);
+    await kickQueueHandler.handleCommand(
+      interaction,
+      service,
+      sendCheckMessage,
+    );
 
     expect(deferReply).toHaveBeenCalledWith({
       flags: MessageFlags.Ephemeral,
@@ -97,7 +101,11 @@ describe("handleKickQueueCommand", () => {
       },
     );
 
-    await handleKickQueueCommand(interaction, service, sendCheckMessage);
+    await kickQueueHandler.handleCommand(
+      interaction,
+      service,
+      sendCheckMessage,
+    );
 
     expect(deferReply).toHaveBeenCalledWith({
       flags: MessageFlags.Ephemeral,
@@ -123,7 +131,7 @@ describe("handleKickQueueCommand", () => {
       userId: "user-77",
     });
 
-    await handleKickQueueCommand(interaction, service);
+    await kickQueueHandler.handleCommand(interaction, service);
 
     expect(service.addPendingKickUser).toHaveBeenCalledWith(
       "guild-1",
@@ -145,7 +153,7 @@ describe("handleKickQueueCommand", () => {
       subcommand: "list",
     });
 
-    await handleKickQueueCommand(interaction, service);
+    await kickQueueHandler.handleCommand(interaction, service);
 
     expect(service.listPendingKickUsers).toHaveBeenCalledWith("guild-1");
     expect(reply).toHaveBeenCalledWith({
@@ -162,7 +170,7 @@ describe("handleKickQueueCommand", () => {
       userId: "user-11",
     });
 
-    await handleKickQueueCommand(interaction, service);
+    await kickQueueHandler.handleCommand(interaction, service);
 
     expect(service.removePendingKickUser).toHaveBeenCalledWith(
       "guild-1",

@@ -7,7 +7,7 @@ const slashCommandDefinitions = [
   kickQueueCommandDefinition,
 ];
 
-export async function registerSlashCommands(): Promise<void> {
+async function register(): Promise<void> {
   const token = process.env.DISCORD_TOKEN;
   const clientId = process.env.DISCORD_CLIENT_ID;
   if (!token) {
@@ -24,3 +24,9 @@ export async function registerSlashCommands(): Promise<void> {
   });
   console.log("Глобальные slash-команды обновлены");
 }
+
+const commandRegister = {
+  register,
+};
+
+export default commandRegister;

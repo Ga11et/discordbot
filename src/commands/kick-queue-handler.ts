@@ -7,9 +7,9 @@ import {
   KickQueueService,
   kickQueueService,
 } from "../members/kick-queue-service";
-import { sendKickQueueCheckMessage } from "./kick-queue-check";
+import kickQueueCheck from "./kick-queue-check";
 
-type SendKickQueueCheckMessage = typeof sendKickQueueCheckMessage;
+type SendCheckMessage = typeof kickQueueCheck.sendCheckMessage;
 const EPHEMERAL_FLAGS = MessageFlags.Ephemeral;
 
 async function respond(
@@ -34,10 +34,10 @@ function formatPendingKickList(userIds: string[]): string {
     .join("\n");
 }
 
-export async function handleKickQueueCommand(
+async function handleCommand(
   interaction: ChatInputCommandInteraction,
   service: KickQueueService = kickQueueService,
-  sendCheckMessage: SendKickQueueCheckMessage = sendKickQueueCheckMessage,
+  sendCheckMessage: SendCheckMessage = kickQueueCheck.sendCheckMessage,
 ): Promise<void> {
   if (!interaction.inGuild() || !interaction.guildId) {
     await respond(interaction, "Команда доступна только на сервере", {
@@ -109,3 +109,9 @@ export async function handleKickQueueCommand(
     flags: EPHEMERAL_FLAGS,
   });
 }
+
+const kickQueueHandler = {
+  handleCommand,
+};
+
+export default kickQueueHandler;

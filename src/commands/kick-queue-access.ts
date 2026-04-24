@@ -22,7 +22,7 @@ function parseRoleIds(rawRoleIds: string): string[] {
   ];
 }
 
-export function loadKickQueueAccessConfig(
+function loadConfig(
   env: NodeJS.ProcessEnv = process.env,
 ): KickQueueAccessConfig {
   const allowedChannelId = env.BD_ALLOWED_CHANNEL_ID?.trim();
@@ -71,7 +71,7 @@ function extractInteractionRoleIds(
   return [];
 }
 
-export function hasKickQueueAccess(
+function hasAccess(
   interaction: ChatInputCommandInteraction,
   config: KickQueueAccessConfig,
 ): boolean {
@@ -109,14 +109,22 @@ async function replyToInteraction(
   await interaction.reply(payload);
 }
 
-export async function ensureKickQueueAccess(
+async function ensureAccess(
   interaction: ChatInputCommandInteraction,
   config: KickQueueAccessConfig,
 ): Promise<boolean> {
-  if (hasKickQueueAccess(interaction, config)) {
+  if (hasAccess(interaction, config)) {
     return true;
   }
 
   await replyToInteraction(interaction, accessDeniedMessage(config));
   return false;
 }
+
+const kickQueueAccess = {
+  ensureAccess,
+  hasAccess,
+  loadConfig,
+};
+
+export default kickQueueAccess;

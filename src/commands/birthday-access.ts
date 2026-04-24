@@ -21,7 +21,7 @@ const PUBLIC_BD_SUBCOMMANDS = new Set(["me", "set", "list"]);
 
 type BirthdayInteraction = ChatInputCommandInteraction | ModalSubmitInteraction;
 
-export function isPublicBirthdaySubcommand(
+function isPublicBirthdaySubcommand(
   interaction: ChatInputCommandInteraction,
 ): boolean {
   if (interaction.options.getSubcommandGroup(false)) {
@@ -64,7 +64,7 @@ function formatAllowedChannels(channelIds: string[]): string {
   return `в каналах: ${channelMentions.join(", ")}`;
 }
 
-export function loadBirthdayAccessConfig(
+function loadConfig(
   env: NodeJS.ProcessEnv = process.env,
 ): BirthdayAccessConfig {
   const allowedChannelIdsRaw = env.BD_ALLOWED_CHANNEL_ID?.trim();
@@ -118,7 +118,7 @@ function extractInteractionRoleIds(interaction: BirthdayInteraction): string[] {
   return [];
 }
 
-export function hasBirthdayAccess(
+function hasBirthdayAccess(
   interaction: BirthdayInteraction,
   config: BirthdayAccessConfig,
   policy: BirthdayAccessPolicy = DEFAULT_BIRTHDAY_ACCESS_POLICY,
@@ -169,7 +169,7 @@ async function replyToInteraction(
   await interaction.reply(payload);
 }
 
-export async function ensureBirthdayAccess(
+async function ensureAccess(
   interaction: BirthdayInteraction,
   config: BirthdayAccessConfig,
   policy: BirthdayAccessPolicy = DEFAULT_BIRTHDAY_ACCESS_POLICY,
@@ -181,3 +181,12 @@ export async function ensureBirthdayAccess(
   await replyToInteraction(interaction, accessDeniedMessage(config, policy));
   return false;
 }
+
+const birthdayAccess = {
+  ensureAccess,
+  hasAccess: hasBirthdayAccess,
+  isPublicSubcommand: isPublicBirthdaySubcommand,
+  loadConfig,
+};
+
+export default birthdayAccess;
