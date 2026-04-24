@@ -1,149 +1,66 @@
 import { describe, expect, it, vi } from "vitest";
-import type {
-  ChatInputCommandInteraction,
-  ModalSubmitInteraction,
-} from "discord.js";
-import birthdayAccess, {
-  type BirthdayAccessConfig,
-} from "../src/commands/birthday-access";
+import type { ChatInputCommandInteraction } from "discord.js";
+import birthdayAccess from "../src/commands/birthday-access";
+import type { CommandAccessConfig } from "../src/commands/command-access";
 
 interface FakeInteractionOptions {
+  channelId?: string | null;
+  deferred?: boolean;
   inGuild?: boolean;
-  channelId?: string;
+  replied?: boolean;
   roleIds?: string[];
   subcommand?: string;
-  subcommandGroup?: string | null;
-  deferred?: boolean;
-  replied?: boolean;
+  userId?: string;
 }
 
-function createFakeChatInteraction(options: FakeInteractionOptions = {}) {
+function createFakeInteraction(options: FakeInteractionOptions = {}) {
   const reply = vi.fn().mockResolvedValue(undefined);
   const followUp = vi.fn().mockResolvedValue(undefined);
 
   const interaction = {
-    inGuild: () => options.inGuild ?? true,
     channelId: options.channelId ?? "channel-1",
-    member: options.roleIds ? { roles: options.roleIds } : null,
-    options: {
-      getSubcommand: () => options.subcommand ?? "me",
-      getSubcommandGroup: () => options.subcommandGroup ?? null,
-    },
+    commandName: "bd",
     deferred: options.deferred ?? false,
+    followUp,
+    inGuild: () => options.inGuild ?? true,
+    isChatInputCommand: () => true,
+    isModalSubmit: () => false,
+    member: {
+      roles: options.roleIds ?? [],
+    },
+    options: {
+      getSubcommand: () => options.subcommand ?? "gratz",
+      getSubcommandGroup: () => false,
+    },
     replied: options.replied ?? false,
     reply,
-    followUp,
+    user: {
+      id: options.userId ?? "user-guest",
+    },
   } as unknown as ChatInputCommandInteraction;
 
-  return { interaction, reply, followUp };
+  return { followUp, interaction, reply };
 }
 
-function createFakeModalInteractionWithRoleCache(
-  roleIds: string[],
-): ModalSubmitInteraction {
-  return {
-    inGuild: () => true,
-    channelId: "channel-1",
-    member: {
-      roles: {
-        cache: new Map(roleIds.map((id) => [id, {}])),
-      },
-    },
-    deferred: false,
-    replied: false,
-    reply: vi.fn().mockResolvedValue(undefined),
-    followUp: vi.fn().mockResolvedValue(undefined),
-  } as unknown as ModalSubmitInteraction;
-}
-
-const accessConfig: BirthdayAccessConfig = {
+const accessConfig: CommandAccessConfig = {
   allowedChannelIds: ["channel-1", "channel-2"],
-  allowedRoleIds: ["role-a", "role-b"],
+  roleConfig: {
+    adminRoleIds: ["role-admin"],
+    adminUserIds: ["user-admin"],
+    testerRoleIds: ["role-tester"],
+    testerUserIds: ["user-tester"],
+  },
 };
 
-describe("loadBirthdayAccessConfig", () => {
-  it("parses channel ids and list of role ids", () => {
-    const config = birthdayAccess.loadConfig({
-      BD_ALLOWED_CHANNEL_ID: "  channel-1, channel-2, channel-1 ,, ",
-      BD_ALLOWED_ROLE_IDS: " role-a, role-b,role-a ,, ",
-    });
-
-    expect(config).toEqual({
-      allowedChannelIds: ["channel-1", "channel-2"],
-      allowedRoleIds: ["role-a", "role-b"],
-    });
-  });
-
-  it("throws when channel id is missing", () => {
-    expect(() =>
-      birthdayAccess.loadConfig({ BD_ALLOWED_ROLE_IDS: "role-a" }),
-    ).toThrow("BD_ALLOWED_CHANNEL_ID is not set");
-  });
-
-  it("throws when channel ids are empty after parsing", () => {
-    expect(() =>
-      birthdayAccess.loadConfig({
-        BD_ALLOWED_CHANNEL_ID: " , , ",
-        BD_ALLOWED_ROLE_IDS: "role-a",
-      }),
-    ).toThrow("BD_ALLOWED_CHANNEL_ID must contain at least one channel id");
-  });
-
-  it("throws when role ids are missing or empty", () => {
-    expect(() =>
-      birthdayAccess.loadConfig({ BD_ALLOWED_CHANNEL_ID: "channel-1" }),
-    ).toThrow("BD_ALLOWED_ROLE_IDS is not set");
-
-    expect(() =>
-      birthdayAccess.loadConfig({
-        BD_ALLOWED_CHANNEL_ID: "channel-1",
-        BD_ALLOWED_ROLE_IDS: " , , ",
-      }),
-    ).toThrow("BD_ALLOWED_ROLE_IDS must contain at least one role id");
-  });
-});
-
-describe("birthday access checks", () => {
-  it("marks top-level me/set/list as public subcommands", () => {
-    const me = createFakeChatInteraction({ subcommand: "me" }).interaction;
-    const set = createFakeChatInteraction({ subcommand: "set" }).interaction;
-    const list = createFakeChatInteraction({ subcommand: "list" }).interaction;
-
-    expect(birthdayAccess.isPublicSubcommand(me)).toBe(true);
-    expect(birthdayAccess.isPublicSubcommand(set)).toBe(true);
-    expect(birthdayAccess.isPublicSubcommand(list)).toBe(true);
-  });
-
-  it("does not mark restricted /bd subcommands as public", () => {
-    const del = createFakeChatInteraction({
-      subcommand: "delete",
-    }).interaction;
-    const gratz = createFakeChatInteraction({
-      subcommand: "gratz",
-    }).interaction;
-    const grouped = createFakeChatInteraction({
-      subcommand: "list",
-      subcommandGroup: "gratzmessage",
-    }).interaction;
-
-    expect(birthdayAccess.isPublicSubcommand(del)).toBe(false);
-    expect(birthdayAccess.isPublicSubcommand(gratz)).toBe(false);
-    expect(birthdayAccess.isPublicSubcommand(grouped)).toBe(false);
-  });
-
-  it("allows restricted /bd delete in the configured channel for allowed roles", async () => {
-    const { interaction, reply, followUp } = createFakeChatInteraction({
-      channelId: "channel-2",
-      roleIds: ["role-b"],
-      subcommand: "delete",
+describe("birthday access wrapper", () => {
+  it("allows interaction without replying when centralized access allows it", async () => {
+    const { followUp, interaction, reply } = createFakeInteraction({
+      roleIds: ["role-tester"],
     });
 
     const allowed = await birthdayAccess.ensureAccess(
       interaction,
       accessConfig,
-      {
-        requireRole: !birthdayAccess.isPublicSubcommand(interaction),
-      },
     );
 
     expect(allowed).toBe(true);
@@ -151,74 +68,10 @@ describe("birthday access checks", () => {
     expect(followUp).not.toHaveBeenCalled();
   });
 
-  it("denies restricted /bd delete in the configured channel without allowed roles", async () => {
-    const { interaction, reply } = createFakeChatInteraction({
-      channelId: "channel-1",
-      roleIds: ["role-x"],
-      subcommand: "delete",
-    });
-
-    const allowed = await birthdayAccess.ensureAccess(
-      interaction,
-      accessConfig,
-      {
-        requireRole: !birthdayAccess.isPublicSubcommand(interaction),
-      },
-    );
-
-    expect(allowed).toBe(false);
-    expect(reply).toHaveBeenCalledWith({
-      content:
-        "Команды /bd доступны только в каналах: <#channel-1>, <#channel-2> и для ролей: <@&role-a>, <@&role-b>",
-      ephemeral: true,
-    });
-  });
-
-  it("allows interaction when any allowed channel and at least one role match", async () => {
-    const { interaction, reply, followUp } = createFakeChatInteraction({
-      channelId: "channel-1",
-      roleIds: ["role-x", "role-b"],
-    });
-
-    expect(birthdayAccess.hasAccess(interaction, accessConfig)).toBe(true);
-
-    const allowed = await birthdayAccess.ensureAccess(
-      interaction,
-      accessConfig,
-    );
-    expect(allowed).toBe(true);
-    expect(reply).not.toHaveBeenCalled();
-    expect(followUp).not.toHaveBeenCalled();
-  });
-
-  it("allows interaction in allowed channel without role when role is not required", async () => {
-    const { interaction, reply, followUp } = createFakeChatInteraction({
-      channelId: "channel-1",
-      roleIds: [],
-    });
-
-    expect(
-      birthdayAccess.hasAccess(interaction, accessConfig, {
-        requireRole: false,
-      }),
-    ).toBe(true);
-
-    const allowed = await birthdayAccess.ensureAccess(
-      interaction,
-      accessConfig,
-      {
-        requireRole: false,
-      },
-    );
-    expect(allowed).toBe(true);
-    expect(reply).not.toHaveBeenCalled();
-    expect(followUp).not.toHaveBeenCalled();
-  });
-
-  it("denies interaction in wrong channel with ephemeral reply", async () => {
-    const { interaction, reply } = createFakeChatInteraction({
+  it("denies interaction with an ephemeral reply when centralized access denies it", async () => {
+    const { interaction, reply } = createFakeInteraction({
       channelId: "channel-3",
-      roleIds: ["role-a"],
+      roleIds: ["role-tester"],
     });
 
     const allowed = await birthdayAccess.ensureAccess(
@@ -229,54 +82,16 @@ describe("birthday access checks", () => {
     expect(allowed).toBe(false);
     expect(reply).toHaveBeenCalledWith({
       content:
-        "Команды /bd доступны только в каналах: <#channel-1>, <#channel-2> и для ролей: <@&role-a>, <@&role-b>",
+        "Команды /bd доступны только в каналах: <#channel-1>, <#channel-2> и пользователям с правами TESTER или ADMIN",
       ephemeral: true,
     });
   });
 
-  it("denies interaction in DM", async () => {
-    const { interaction, reply } = createFakeChatInteraction({
-      inGuild: false,
-      roleIds: ["role-a"],
-    });
-
-    const allowed = await birthdayAccess.ensureAccess(
-      interaction,
-      accessConfig,
-    );
-
-    expect(allowed).toBe(false);
-    expect(reply).toHaveBeenCalledTimes(1);
-  });
-
-  it("denies public subcommand outside allowed channel with channel-only message", async () => {
-    const { interaction, reply } = createFakeChatInteraction({
+  it("uses followUp instead of reply when denied interaction already has a response", async () => {
+    const { followUp, interaction, reply } = createFakeInteraction({
       channelId: "channel-3",
-      roleIds: [],
-      subcommand: "me",
-    });
-
-    const allowed = await birthdayAccess.ensureAccess(
-      interaction,
-      accessConfig,
-      {
-        requireRole: false,
-      },
-    );
-
-    expect(allowed).toBe(false);
-    expect(reply).toHaveBeenCalledWith({
-      content:
-        "Команды /bd доступны только в каналах: <#channel-1>, <#channel-2>",
-      ephemeral: true,
-    });
-  });
-
-  it("uses followUp if interaction already replied", async () => {
-    const { interaction, reply, followUp } = createFakeChatInteraction({
-      channelId: "channel-3",
-      roleIds: ["role-a"],
       replied: true,
+      roleIds: ["role-tester"],
     });
 
     const allowed = await birthdayAccess.ensureAccess(
@@ -286,15 +101,10 @@ describe("birthday access checks", () => {
 
     expect(allowed).toBe(false);
     expect(reply).not.toHaveBeenCalled();
-    expect(followUp).toHaveBeenCalledTimes(1);
-  });
-
-  it("supports modal interactions with guild-member role cache", () => {
-    const modalInteraction = createFakeModalInteractionWithRoleCache([
-      "role-z",
-      "role-b",
-    ]);
-
-    expect(birthdayAccess.hasAccess(modalInteraction, accessConfig)).toBe(true);
+    expect(followUp).toHaveBeenCalledWith({
+      content:
+        "Команды /bd доступны только в каналах: <#channel-1>, <#channel-2> и пользователям с правами TESTER или ADMIN",
+      ephemeral: true,
+    });
   });
 });

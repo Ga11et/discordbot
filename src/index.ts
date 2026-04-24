@@ -81,9 +81,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
     const hasAccess = await birthdayAccess.ensureAccess(
       interaction,
       birthdayAccessConfig,
-      {
-        requireRole: !birthdayAccess.isPublicSubcommand(interaction),
-      },
     );
     if (!hasAccess) {
       return;

@@ -1,15 +1,16 @@
-import { describe, expect, it, vi } from "vitest";
 import { MessageFlags, type ChatInputCommandInteraction } from "discord.js";
-import kickQueueAccess, {
-  type KickQueueAccessConfig,
-} from "../src/commands/kick-queue-access";
+import { describe, expect, it, vi } from "vitest";
+import kickQueueAccess from "../src/commands/kick-queue-access";
+import type { CommandAccessConfig } from "../src/commands/command-access";
 
 interface FakeInteractionOptions {
-  inGuild?: boolean;
-  channelId?: string;
-  roleIds?: string[];
+  channelId?: string | null;
   deferred?: boolean;
+  inGuild?: boolean;
   replied?: boolean;
+  roleIds?: string[];
+  subcommand?: string;
+  userId?: string;
 }
 
 function createFakeInteraction(options: FakeInteractionOptions = {}) {
@@ -17,78 +18,60 @@ function createFakeInteraction(options: FakeInteractionOptions = {}) {
   const followUp = vi.fn().mockResolvedValue(undefined);
 
   const interaction = {
-    inGuild: () => options.inGuild ?? true,
     channelId: options.channelId ?? "channel-1",
-    member: options.roleIds ? { roles: options.roleIds } : null,
+    commandName: "kickqueue",
     deferred: options.deferred ?? false,
+    followUp,
+    inGuild: () => options.inGuild ?? true,
+    isChatInputCommand: () => true,
+    isModalSubmit: () => false,
+    member: {
+      roles: options.roleIds ?? [],
+    },
+    options: {
+      getSubcommand: () => options.subcommand ?? "remove",
+      getSubcommandGroup: () => false,
+    },
     replied: options.replied ?? false,
     reply,
-    followUp,
+    user: {
+      id: options.userId ?? "user-guest",
+    },
   } as unknown as ChatInputCommandInteraction;
 
-  return { interaction, reply, followUp };
+  return { followUp, interaction, reply };
 }
 
-const accessConfig: KickQueueAccessConfig = {
-  allowedChannelId: "channel-1",
-  allowedRoleIds: ["role-a", "role-b"],
+const accessConfig: CommandAccessConfig = {
+  allowedChannelIds: ["channel-1"],
+  roleConfig: {
+    adminRoleIds: ["role-admin"],
+    adminUserIds: ["user-admin"],
+    testerRoleIds: ["role-tester"],
+    testerUserIds: ["user-tester"],
+  },
 };
 
-describe("loadKickQueueAccessConfig", () => {
-  it("parses channel id and list of role ids", () => {
-    const config = kickQueueAccess.loadConfig({
-      BD_ALLOWED_CHANNEL_ID: "  channel-1  ",
-      BD_ALLOWED_ROLE_IDS: " role-a, role-b,role-a ,, ",
+describe("kickqueue access wrapper", () => {
+  it("allows interaction without replying when centralized access allows it", async () => {
+    const { followUp, interaction, reply } = createFakeInteraction({
+      roleIds: ["role-tester"],
     });
-
-    expect(config).toEqual({
-      allowedChannelId: "channel-1",
-      allowedRoleIds: ["role-a", "role-b"],
-    });
-  });
-
-  it("throws when channel id is missing", () => {
-    expect(() =>
-      kickQueueAccess.loadConfig({ BD_ALLOWED_ROLE_IDS: "role-a" }),
-    ).toThrow("BD_ALLOWED_CHANNEL_ID is not set");
-  });
-
-  it("throws when role ids are missing or empty", () => {
-    expect(() =>
-      kickQueueAccess.loadConfig({ BD_ALLOWED_CHANNEL_ID: "channel-1" }),
-    ).toThrow("BD_ALLOWED_ROLE_IDS is not set");
-
-    expect(() =>
-      kickQueueAccess.loadConfig({
-        BD_ALLOWED_CHANNEL_ID: "channel-1",
-        BD_ALLOWED_ROLE_IDS: " , , ",
-      }),
-    ).toThrow("BD_ALLOWED_ROLE_IDS must contain at least one role id");
-  });
-});
-
-describe("kickqueue access checks", () => {
-  it("allows interaction when channel and at least one role match", async () => {
-    const { interaction, reply, followUp } = createFakeInteraction({
-      channelId: "channel-1",
-      roleIds: ["role-x", "role-b"],
-    });
-
-    expect(kickQueueAccess.hasAccess(interaction, accessConfig)).toBe(true);
 
     const allowed = await kickQueueAccess.ensureAccess(
       interaction,
       accessConfig,
     );
+
     expect(allowed).toBe(true);
     expect(reply).not.toHaveBeenCalled();
     expect(followUp).not.toHaveBeenCalled();
   });
 
-  it("denies interaction in wrong channel with ephemeral reply", async () => {
+  it("denies interaction with an ephemeral flags reply when centralized access denies it", async () => {
     const { interaction, reply } = createFakeInteraction({
       channelId: "channel-2",
-      roleIds: ["role-a"],
+      roleIds: ["role-tester"],
     });
 
     const allowed = await kickQueueAccess.ensureAccess(
@@ -99,31 +82,16 @@ describe("kickqueue access checks", () => {
     expect(allowed).toBe(false);
     expect(reply).toHaveBeenCalledWith({
       content:
-        "Команды /kickqueue доступны только в канале <#channel-1> и для ролей: <@&role-a>, <@&role-b>",
+        "Команды /kickqueue доступны только в канале <#channel-1> и пользователям с правами TESTER или ADMIN",
       flags: MessageFlags.Ephemeral,
     });
   });
 
-  it("denies interaction without allowed role", async () => {
-    const { interaction, reply } = createFakeInteraction({
-      channelId: "channel-1",
-      roleIds: ["role-x"],
-    });
-
-    const allowed = await kickQueueAccess.ensureAccess(
-      interaction,
-      accessConfig,
-    );
-
-    expect(allowed).toBe(false);
-    expect(reply).toHaveBeenCalledTimes(1);
-  });
-
-  it("uses followUp if interaction already replied", async () => {
-    const { interaction, reply, followUp } = createFakeInteraction({
+  it("uses followUp instead of reply when denied interaction already has a response", async () => {
+    const { followUp, interaction, reply } = createFakeInteraction({
       channelId: "channel-2",
-      roleIds: ["role-a"],
       replied: true,
+      roleIds: ["role-tester"],
     });
 
     const allowed = await kickQueueAccess.ensureAccess(
@@ -133,6 +101,10 @@ describe("kickqueue access checks", () => {
 
     expect(allowed).toBe(false);
     expect(reply).not.toHaveBeenCalled();
-    expect(followUp).toHaveBeenCalledTimes(1);
+    expect(followUp).toHaveBeenCalledWith({
+      content:
+        "Команды /kickqueue доступны только в канале <#channel-1> и пользователям с правами TESTER или ADMIN",
+      flags: MessageFlags.Ephemeral,
+    });
   });
 });
