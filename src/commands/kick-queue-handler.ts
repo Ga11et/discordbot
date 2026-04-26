@@ -6,6 +6,7 @@ import {
 } from "discord.js";
 import {
   KickQueueService,
+  type PendingKickRecord,
   kickQueueService,
 } from "../members/kick-queue-service";
 import { KICK_QUEUE_SEND_CHECK_MESSAGE_JOB } from "../jobs/kick-queue-job-executor";
@@ -25,6 +26,12 @@ interface CheckAllResult {
   addedCount: number;
   alreadyPendingCount: number;
   excludedCount: number;
+  failedCount: number;
+}
+
+interface KickQueuedUsersResult {
+  kickedCount: number;
+  notFoundCount: number;
   failedCount: number;
 }
 
@@ -60,6 +67,21 @@ function formatPendingKickList(userIds: string[]): string {
   return userIds
     .map((userId, index) => `${index + 1}. <@${userId}> (\`${userId}\`)`)
     .join("\n");
+}
+
+async function fetchGuildMemberByUserId(
+  interaction: ChatInputCommandInteraction,
+  userId: string,
+): Promise<GuildMember | null> {
+  if (!interaction.guild) {
+    return null;
+  }
+
+  try {
+    return await interaction.guild.members.fetch(userId);
+  } catch {
+    return null;
+  }
 }
 
 function loadCheckAllConfig(
@@ -149,6 +171,42 @@ async function queueEligibleMembers(
     addedCount,
     alreadyPendingCount,
     excludedCount: 0,
+    failedCount,
+  };
+}
+
+async function kickQueuedUsers(
+  interaction: ChatInputCommandInteraction,
+  guildId: string,
+  records: PendingKickRecord[],
+  service: KickQueueService,
+): Promise<KickQueuedUsersResult> {
+  let kickedCount = 0;
+  let notFoundCount = 0;
+  let failedCount = 0;
+
+  for (const record of records) {
+    const member = await fetchGuildMemberByUserId(
+      interaction,
+      record.discordUserId,
+    );
+    if (!member) {
+      notFoundCount += 1;
+      continue;
+    }
+
+    try {
+      await member.kick();
+      await service.removePendingKickUser(guildId, record.discordUserId);
+      kickedCount += 1;
+    } catch {
+      failedCount += 1;
+    }
+  }
+
+  return {
+    kickedCount,
+    notFoundCount,
     failedCount,
   };
 }
@@ -256,6 +314,27 @@ async function handleCommand(
         ? "Очередь пользователей на кик пуста"
         : formatPendingKickList(records.map((record) => record.discordUserId)),
       { flags: EPHEMERAL_FLAGS },
+    );
+    return;
+  }
+
+  if (subcommand === "kick") {
+    await interaction.deferReply({ flags: EPHEMERAL_FLAGS });
+
+    const records = await service.listPendingKickUsers(guildId);
+    if (records.length === 0) {
+      await interaction.editReply("Очередь пользователей на кик пуста");
+      return;
+    }
+
+    const result = await kickQueuedUsers(
+      interaction,
+      guildId,
+      records,
+      service,
+    );
+    await interaction.editReply(
+      `Кикнуто ${result.kickedCount} пользователей, не найдено на сервере ${result.notFoundCount} пользователей, не удалось кикнуть ${result.failedCount} пользователей, в очереди оставлено ${result.notFoundCount + result.failedCount} пользователей`,
     );
     return;
   }

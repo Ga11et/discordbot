@@ -4,6 +4,7 @@ import kickQueueHandler from "../src/commands/kick-queue-handler";
 import type { KickQueueService } from "../src/members/kick-queue-service";
 
 interface FakeGuildMemberOptions {
+  kickError?: Error;
   roleIds?: string[];
   userId: string;
 }
@@ -12,7 +13,7 @@ interface FakeKickQueueInteractionOptions {
   guildId?: string | null;
   guildMembers?: FakeGuildMemberOptions[];
   inGuild?: boolean;
-  subcommand?: "check" | "checkall" | "add" | "remove" | "list";
+  subcommand?: "check" | "checkall" | "add" | "remove" | "list" | "kick";
   userId?: string;
   deferred?: boolean;
   replied?: boolean;
@@ -28,6 +29,9 @@ function createServiceMock(): KickQueueService {
 
 function createGuildMember(options: FakeGuildMemberOptions) {
   return {
+    kick: options.kickError
+      ? vi.fn().mockRejectedValue(options.kickError)
+      : vi.fn().mockResolvedValue(undefined),
     roles: {
       cache: new Map(
         options.roleIds?.map((roleId) => [roleId, { id: roleId }]) ?? [],
@@ -45,20 +49,26 @@ function createFakeInteraction(options: FakeKickQueueInteractionOptions = {}) {
   const deferReply = vi.fn().mockResolvedValue(undefined);
   const editReply = vi.fn().mockResolvedValue(undefined);
   const guildMembers = options.guildMembers ?? [];
+  const membersByUserId = new Map(
+    guildMembers.map((member) => [member.userId, createGuildMember(member)]),
+  );
+  const fetch = vi.fn(async (userId?: string) => {
+    if (typeof userId === "string") {
+      const member = membersByUserId.get(userId);
+      if (!member) {
+        throw new Error("Member not found");
+      }
+
+      return member;
+    }
+
+    return new Map(membersByUserId);
+  });
 
   const interaction = {
     guild: {
       members: {
-        fetch: vi
-          .fn()
-          .mockResolvedValue(
-            new Map(
-              guildMembers.map((member) => [
-                member.userId,
-                createGuildMember(member),
-              ]),
-            ),
-          ),
+        fetch,
       },
     },
     inGuild: () => options.inGuild ?? true,
@@ -75,7 +85,15 @@ function createFakeInteraction(options: FakeKickQueueInteractionOptions = {}) {
     editReply,
   } as unknown as ChatInputCommandInteraction;
 
-  return { interaction, reply, followUp, deferReply, editReply };
+  return {
+    interaction,
+    reply,
+    followUp,
+    deferReply,
+    editReply,
+    fetch,
+    membersByUserId,
+  };
 }
 
 describe("handleKickQueueCommand", () => {
@@ -371,6 +389,90 @@ describe("handleKickQueueCommand", () => {
       content: "1. <@user-1> (`user-1`)\n2. <@user-2> (`user-2`)",
       flags: MessageFlags.Ephemeral,
     });
+  });
+
+  it("reports when kick is requested for an empty queue", async () => {
+    const service = createServiceMock();
+    vi.mocked(service.listPendingKickUsers).mockResolvedValue([]);
+    const { interaction, deferReply, editReply } = createFakeInteraction({
+      subcommand: "kick",
+    });
+
+    await kickQueueHandler.handleCommand(interaction, service);
+
+    expect(deferReply).toHaveBeenCalledWith({
+      flags: MessageFlags.Ephemeral,
+    });
+    expect(service.listPendingKickUsers).toHaveBeenCalledWith("guild-1");
+    expect(editReply).toHaveBeenCalledWith(
+      "Очередь пользователей на кик пуста",
+    );
+    expect(service.removePendingKickUser).not.toHaveBeenCalled();
+  });
+
+  it("kicks all queued guild members and removes only successful kicks from the queue", async () => {
+    const service = createServiceMock();
+    vi.mocked(service.listPendingKickUsers).mockResolvedValue([
+      { guildId: "guild-1", discordUserId: "user-1" },
+      { guildId: "guild-1", discordUserId: "user-2" },
+    ]);
+    vi.mocked(service.removePendingKickUser).mockResolvedValue(true);
+    const { interaction, deferReply, editReply, membersByUserId } =
+      createFakeInteraction({
+        subcommand: "kick",
+        guildMembers: [{ userId: "user-1" }, { userId: "user-2" }],
+      });
+
+    await kickQueueHandler.handleCommand(interaction, service);
+
+    expect(deferReply).toHaveBeenCalledWith({
+      flags: MessageFlags.Ephemeral,
+    });
+    expect(membersByUserId.get("user-1")?.kick).toHaveBeenCalledTimes(1);
+    expect(membersByUserId.get("user-2")?.kick).toHaveBeenCalledTimes(1);
+    expect(service.removePendingKickUser).toHaveBeenNthCalledWith(
+      1,
+      "guild-1",
+      "user-1",
+    );
+    expect(service.removePendingKickUser).toHaveBeenNthCalledWith(
+      2,
+      "guild-1",
+      "user-2",
+    );
+    expect(editReply).toHaveBeenCalledWith(
+      "Кикнуто 2 пользователей, не найдено на сервере 0 пользователей, не удалось кикнуть 0 пользователей, в очереди оставлено 0 пользователей",
+    );
+  });
+
+  it("keeps users in queue when they are missing from the guild or kick fails", async () => {
+    const service = createServiceMock();
+    vi.mocked(service.listPendingKickUsers).mockResolvedValue([
+      { guildId: "guild-1", discordUserId: "user-1" },
+      { guildId: "guild-1", discordUserId: "user-2" },
+      { guildId: "guild-1", discordUserId: "user-3" },
+    ]);
+    vi.mocked(service.removePendingKickUser).mockResolvedValue(true);
+    const { interaction, editReply, membersByUserId } = createFakeInteraction({
+      subcommand: "kick",
+      guildMembers: [
+        { userId: "user-1" },
+        { userId: "user-2", kickError: new Error("Missing permissions") },
+      ],
+    });
+
+    await kickQueueHandler.handleCommand(interaction, service);
+
+    expect(membersByUserId.get("user-1")?.kick).toHaveBeenCalledTimes(1);
+    expect(membersByUserId.get("user-2")?.kick).toHaveBeenCalledTimes(1);
+    expect(service.removePendingKickUser).toHaveBeenCalledTimes(1);
+    expect(service.removePendingKickUser).toHaveBeenCalledWith(
+      "guild-1",
+      "user-1",
+    );
+    expect(editReply).toHaveBeenCalledWith(
+      "Кикнуто 1 пользователей, не найдено на сервере 1 пользователей, не удалось кикнуть 1 пользователей, в очереди оставлено 2 пользователей",
+    );
   });
 
   it("reports when a user is absent from the queue", async () => {

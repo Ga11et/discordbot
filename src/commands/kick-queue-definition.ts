@@ -56,6 +56,13 @@ const kickQueueBuilder = new SlashCommandBuilder()
       .setDescription(
         "Показать очередь пользователей на кик для этого сервера",
       ),
+  )
+  .addSubcommand((sub) =>
+    sub
+      .setName("kick")
+      .setDescription(
+        "Кикнуть всех пользователей из очереди на кик для этого сервера",
+      ),
   );
 
 export const kickQueueCommandDefinition =
