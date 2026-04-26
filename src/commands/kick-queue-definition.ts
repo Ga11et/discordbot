@@ -1,5 +1,4 @@
 import {
-  PermissionFlagsBits,
   SlashCommandBuilder,
   type RESTPostAPIChatInputApplicationCommandsJSONBody,
 } from "discord.js";
@@ -7,7 +6,6 @@ import {
 const kickQueueBuilder = new SlashCommandBuilder()
   .setName("kickqueue")
   .setDescription("Управление очередью пользователей на кик")
-  .setDefaultMemberPermissions(PermissionFlagsBits.KickMembers)
   .addSubcommand((sub) =>
     sub
       .setName("check")
