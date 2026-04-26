@@ -7,6 +7,8 @@ import kickQueueHandler from "./commands/kick-queue-handler";
 import kickQueueCheck from "./commands/kick-queue-check";
 import birthdayAccess from "./commands/birthday-access";
 import kickQueueAccess from "./commands/kick-queue-access";
+import { createKickQueueJobExecutor } from "./jobs/kick-queue-job-executor";
+import { minuteJobQueue } from "./jobs/minute-job-queue";
 
 const token = process.env.DISCORD_TOKEN;
 if (!token) {
@@ -28,6 +30,7 @@ const client = new Client({
 
 client.once(Events.ClientReady, (readyClient) => {
   console.log(`Бот запущен как ${readyClient.user.tag}`);
+  minuteJobQueue.start(createKickQueueJobExecutor(readyClient));
 });
 
 client.on(Events.MessageCreate, (message: Message) => {

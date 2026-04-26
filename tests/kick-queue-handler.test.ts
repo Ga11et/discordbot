@@ -61,9 +61,9 @@ describe("handleKickQueueCommand", () => {
     expect(service.listPendingKickUsers).not.toHaveBeenCalled();
   });
 
-  it("queues a user and sends the DM check message", async () => {
+  it("queues a user and enqueues the DM send job", async () => {
     const service = createServiceMock();
-    const sendCheckMessage = vi.fn().mockResolvedValue(undefined);
+    const enqueueJob = vi.fn().mockResolvedValue(undefined);
     const { interaction, deferReply, editReply, reply } = createFakeInteraction(
       {
         subcommand: "check",
@@ -71,11 +71,7 @@ describe("handleKickQueueCommand", () => {
       },
     );
 
-    await kickQueueHandler.handleCommand(
-      interaction,
-      service,
-      sendCheckMessage,
-    );
+    await kickQueueHandler.handleCommand(interaction, service, enqueueJob);
 
     expect(deferReply).toHaveBeenCalledWith({
       flags: MessageFlags.Ephemeral,
@@ -84,16 +80,16 @@ describe("handleKickQueueCommand", () => {
       "guild-1",
       "user-55",
     );
-    expect(sendCheckMessage).toHaveBeenCalledWith({ id: "user-55" }, "guild-1");
+    expect(enqueueJob).toHaveBeenCalledWith("guild-1", "user-55");
     expect(editReply).toHaveBeenCalledWith(
-      "Пользователь <@user-55> добавлен в очередь на кик, сообщение отправлено в ЛС",
+      "Пользователь <@user-55> добавлен в очередь на кик, сообщение поставлено в очередь отправки",
     );
     expect(reply).not.toHaveBeenCalled();
   });
 
-  it("rolls back queueing if the DM check message cannot be sent", async () => {
+  it("keeps the pending kick entry after enqueueing a DM send job", async () => {
     const service = createServiceMock();
-    const sendCheckMessage = vi.fn().mockRejectedValue(new Error("DM blocked"));
+    const enqueueJob = vi.fn().mockResolvedValue(undefined);
     const { interaction, deferReply, editReply, reply } = createFakeInteraction(
       {
         subcommand: "check",
@@ -101,11 +97,7 @@ describe("handleKickQueueCommand", () => {
       },
     );
 
-    await kickQueueHandler.handleCommand(
-      interaction,
-      service,
-      sendCheckMessage,
-    );
+    await kickQueueHandler.handleCommand(interaction, service, enqueueJob);
 
     expect(deferReply).toHaveBeenCalledWith({
       flags: MessageFlags.Ephemeral,
@@ -114,12 +106,10 @@ describe("handleKickQueueCommand", () => {
       "guild-1",
       "user-56",
     );
-    expect(service.removePendingKickUser).toHaveBeenCalledWith(
-      "guild-1",
-      "user-56",
-    );
+    expect(enqueueJob).toHaveBeenCalledWith("guild-1", "user-56");
+    expect(service.removePendingKickUser).not.toHaveBeenCalled();
     expect(editReply).toHaveBeenCalledWith(
-      "Не удалось отправить сообщение в ЛС пользователю <@user-56>",
+      "Пользователь <@user-56> добавлен в очередь на кик, сообщение поставлено в очередь отправки",
     );
     expect(reply).not.toHaveBeenCalled();
   });

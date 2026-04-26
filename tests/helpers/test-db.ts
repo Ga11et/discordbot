@@ -48,6 +48,11 @@ export async function resetKickQueueTable(): Promise<void> {
   await testClient("kick_queue").truncate();
 }
 
+export async function resetJobQueueTable(): Promise<void> {
+  const testClient = getTestClient();
+  await testClient("job_queue").truncate();
+}
+
 export async function closeTestDb(): Promise<void> {
   if (!client) return;
   await client.destroy();

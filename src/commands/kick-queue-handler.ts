@@ -7,10 +7,24 @@ import {
   KickQueueService,
   kickQueueService,
 } from "../members/kick-queue-service";
-import kickQueueCheck from "./kick-queue-check";
+import { KICK_QUEUE_SEND_CHECK_MESSAGE_JOB } from "../jobs/kick-queue-job-executor";
+import { minuteJobQueue } from "../jobs/minute-job-queue";
 
-type SendCheckMessage = typeof kickQueueCheck.sendCheckMessage;
+type EnqueueCheckMessageJob = (
+  guildId: string,
+  userId: string,
+) => Promise<void>;
 const EPHEMERAL_FLAGS = MessageFlags.Ephemeral;
+
+async function enqueueCheckMessageJob(
+  guildId: string,
+  userId: string,
+): Promise<void> {
+  await minuteJobQueue.enqueue(KICK_QUEUE_SEND_CHECK_MESSAGE_JOB, {
+    guildId,
+    userId,
+  });
+}
 
 async function respond(
   interaction: ChatInputCommandInteraction,
@@ -37,7 +51,7 @@ function formatPendingKickList(userIds: string[]): string {
 async function handleCommand(
   interaction: ChatInputCommandInteraction,
   service: KickQueueService = kickQueueService,
-  sendCheckMessage: SendCheckMessage = kickQueueCheck.sendCheckMessage,
+  enqueueJob: EnqueueCheckMessageJob = enqueueCheckMessageJob,
 ): Promise<void> {
   if (!interaction.inGuild() || !interaction.guildId) {
     await respond(interaction, "Команда доступна только на сервере", {
@@ -53,18 +67,10 @@ async function handleCommand(
     const user = interaction.options.getUser("user", true);
     await interaction.deferReply({ flags: EPHEMERAL_FLAGS });
     await service.addPendingKickUser(guildId, user.id);
-
-    try {
-      await sendCheckMessage(user, guildId);
-      await interaction.editReply(
-        `Пользователь <@${user.id}> добавлен в очередь на кик, сообщение отправлено в ЛС`,
-      );
-    } catch {
-      await service.removePendingKickUser(guildId, user.id);
-      await interaction.editReply(
-        `Не удалось отправить сообщение в ЛС пользователю <@${user.id}>`,
-      );
-    }
+    await enqueueJob(guildId, user.id);
+    await interaction.editReply(
+      `Пользователь <@${user.id}> добавлен в очередь на кик, сообщение поставлено в очередь отправки`,
+    );
     return;
   }
 
