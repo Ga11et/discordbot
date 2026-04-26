@@ -112,4 +112,35 @@ describe("MinuteJobQueue", () => {
     expect(executed).toHaveBeenCalledTimes(1);
     await expect(secondQueue.list()).resolves.toEqual([]);
   });
+
+  it("does not allow two queue instances to claim the same due job", async () => {
+    const firstQueue = createMinuteJobQueue(getTestClient(), 60_000);
+    const secondQueue = createMinuteJobQueue(getTestClient(), 60_000);
+    await firstQueue.enqueue("test.job", { value: 5 });
+
+    let notifyExecutionStarted: (() => void) | null = null;
+    const executionStarted = new Promise<void>((resolve) => {
+      notifyExecutionStarted = resolve;
+    });
+    let resolveExecution!: () => void;
+    const firstExecutor = vi.fn().mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          notifyExecutionStarted?.();
+          resolveExecution = resolve;
+        }),
+    );
+    const secondExecutor = vi.fn().mockResolvedValue(undefined);
+
+    const firstRun = firstQueue.runNext(firstExecutor);
+    await executionStarted;
+
+    const secondRun = secondQueue.runNext(secondExecutor);
+    await expect(secondRun).resolves.toBe(false);
+    expect(secondExecutor).not.toHaveBeenCalled();
+
+    resolveExecution();
+    await expect(firstRun).resolves.toBe(true);
+    await expect(firstQueue.list()).resolves.toEqual([]);
+  });
 });

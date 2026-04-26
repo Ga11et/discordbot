@@ -47,14 +47,13 @@ export const TESTER_ALLOWED_COMMAND_IDS: readonly string[] = [
   "bd.gratzmessage.get",
   "bd.gratzmessage.list",
   "kickqueue.add",
-  "kickqueue.check",
   "kickqueue.list",
   "kickqueue.remove",
 ];
 
 const PUBLIC_COMMAND_IDS = new Set(["bd.me", "bd.set", "bd.list"]);
 
-function parseIds(rawIds: string | undefined): string[] {
+export function parseIds(rawIds: string | undefined): string[] {
   return [
     ...new Set(
       (rawIds ?? "")
@@ -335,6 +334,7 @@ const commandAccess = {
   isPublicCommandId,
   loadConfig,
   loadRoleConfig,
+  parseIds,
   resolveRoles,
   TESTER_ALLOWED_COMMAND_IDS,
 };

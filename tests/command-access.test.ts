@@ -21,6 +21,7 @@ const commandIds = [
   "bd.gratzmessage.delete",
   "bd.gratzmessage.list",
   "kickqueue.check",
+  "kickqueue.checkall",
   "kickqueue.add",
   "kickqueue.remove",
   "kickqueue.list",

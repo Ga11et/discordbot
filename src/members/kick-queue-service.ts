@@ -9,6 +9,13 @@ interface KickQueueRow {
   discord_user_id: string;
 }
 
+interface KickQueueInsertRow {
+  guild_id: string;
+  discord_user_id: string;
+  created_at: Knex.Value;
+  updated_at: Knex.Value;
+}
+
 export interface PendingKickRecord {
   guildId: string;
   discordUserId: string;
@@ -38,10 +45,13 @@ export class KickQueueService {
     return rows.map(mapRowToRecord);
   }
 
-  async addPendingKickUser(guildId: string, discordUserId: string): Promise<void> {
+  async addPendingKickUser(
+    guildId: string,
+    discordUserId: string,
+  ): Promise<boolean> {
     const now = this.client.fn.now();
 
-    await this.client(TABLE_NAME)
+    const [insertedRow] = await this.client<KickQueueInsertRow>(TABLE_NAME)
       .insert({
         guild_id: guildId,
         discord_user_id: discordUserId,
@@ -49,9 +59,23 @@ export class KickQueueService {
         updated_at: now,
       })
       .onConflict(["guild_id", "discord_user_id"])
-      .merge({
+      .ignore()
+      .returning(["discord_user_id"]);
+
+    if (insertedRow) {
+      return true;
+    }
+
+    await this.client(TABLE_NAME)
+      .where({
+        guild_id: guildId,
+        discord_user_id: discordUserId,
+      })
+      .update({
         updated_at: this.client.fn.now(),
       });
+
+    return false;
   }
 
   async removePendingKickUser(

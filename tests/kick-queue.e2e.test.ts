@@ -23,8 +23,12 @@ describe("KickQueueService (e2e)", () => {
   it("adds and lists users only for the requested guild", async () => {
     const service = createKickQueueService(getTestClient());
 
-    await service.addPendingKickUser("guild-1", "user-1");
-    await service.addPendingKickUser("guild-2", "user-2");
+    await expect(service.addPendingKickUser("guild-1", "user-1")).resolves.toBe(
+      true,
+    );
+    await expect(service.addPendingKickUser("guild-2", "user-2")).resolves.toBe(
+      true,
+    );
 
     await expect(service.listPendingKickUsers("guild-1")).resolves.toEqual([
       {
@@ -37,8 +41,12 @@ describe("KickQueueService (e2e)", () => {
   it("keeps add idempotent within the same guild", async () => {
     const service = createKickQueueService(getTestClient());
 
-    await service.addPendingKickUser("guild-1", "user-1");
-    await service.addPendingKickUser("guild-1", "user-1");
+    await expect(service.addPendingKickUser("guild-1", "user-1")).resolves.toBe(
+      true,
+    );
+    await expect(service.addPendingKickUser("guild-1", "user-1")).resolves.toBe(
+      false,
+    );
 
     const records = await service.listPendingKickUsers("guild-1");
     expect(records).toHaveLength(1);
@@ -51,8 +59,12 @@ describe("KickQueueService (e2e)", () => {
   it("allows the same user to be queued in multiple guilds", async () => {
     const service = createKickQueueService(getTestClient());
 
-    await service.addPendingKickUser("guild-1", "user-1");
-    await service.addPendingKickUser("guild-2", "user-1");
+    await expect(service.addPendingKickUser("guild-1", "user-1")).resolves.toBe(
+      true,
+    );
+    await expect(service.addPendingKickUser("guild-2", "user-1")).resolves.toBe(
+      true,
+    );
 
     await expect(service.listPendingKickUsers("guild-1")).resolves.toEqual([
       {
@@ -71,8 +83,12 @@ describe("KickQueueService (e2e)", () => {
   it("removes a user only from the targeted guild", async () => {
     const service = createKickQueueService(getTestClient());
 
-    await service.addPendingKickUser("guild-1", "user-1");
-    await service.addPendingKickUser("guild-2", "user-1");
+    await expect(service.addPendingKickUser("guild-1", "user-1")).resolves.toBe(
+      true,
+    );
+    await expect(service.addPendingKickUser("guild-2", "user-1")).resolves.toBe(
+      true,
+    );
 
     await expect(
       service.removePendingKickUser("guild-1", "user-1"),

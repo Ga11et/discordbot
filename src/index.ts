@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { Client, Events, GatewayIntentBits, type Message } from "discord.js";
+import { Events, type Message } from "discord.js";
 import { ensureDatabaseConnection, runMigrations } from "./db";
 import commandRegister from "./commands/register";
 import birthdayHandler from "./commands/birthday-handler";
@@ -7,6 +7,7 @@ import kickQueueHandler from "./commands/kick-queue-handler";
 import kickQueueCheck from "./commands/kick-queue-check";
 import birthdayAccess from "./commands/birthday-access";
 import kickQueueAccess from "./commands/kick-queue-access";
+import { createDiscordClient } from "./discord-client";
 import { createKickQueueJobExecutor } from "./jobs/kick-queue-job-executor";
 import { minuteJobQueue } from "./jobs/minute-job-queue";
 
@@ -20,13 +21,7 @@ if (!token) {
 const birthdayAccessConfig = birthdayAccess.loadConfig();
 const kickQueueAccessConfig = kickQueueAccess.loadConfig();
 
-const client = new Client({
-  intents: [
-    GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent,
-  ],
-});
+const client = createDiscordClient();
 
 client.once(Events.ClientReady, (readyClient) => {
   console.log(`Бот запущен как ${readyClient.user.tag}`);

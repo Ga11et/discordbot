@@ -59,6 +59,12 @@ function errorToMessage(error: unknown): string {
   return String(error);
 }
 
+function getNextRunAfterExpression(client: Knex, intervalMs: number): Knex.Raw {
+  return client.raw(`NOW() + (? || ' milliseconds')::interval`, [
+    String(intervalMs),
+  ]);
+}
+
 export class MinuteJobQueue {
   private timer: NodeJS.Timeout | null = null;
   private isRunning = false;
@@ -135,29 +141,31 @@ export class MinuteJobQueue {
   }
 
   private async claimNextDueJob(): Promise<JobQueueRecord | null> {
-    const nextJob = await this.client<JobQueueRow>(TABLE_NAME)
-      .select(...RETURNING_COLUMNS)
-      .where("run_after", "<=", this.client.fn.now())
-      .orderBy("run_after", "asc")
-      .orderBy("created_at", "asc")
-      .orderBy("id", "asc")
-      .first();
+    return this.client.transaction(async (trx) => {
+      const nextJob = await trx<JobQueueRow>(TABLE_NAME)
+        .select("id")
+        .where("run_after", "<=", trx.fn.now())
+        .orderBy("run_after", "asc")
+        .orderBy("created_at", "asc")
+        .orderBy("id", "asc")
+        .forUpdate()
+        .skipLocked()
+        .first();
 
-    if (!nextJob) {
-      return null;
-    }
+      if (!nextJob) {
+        return null;
+      }
 
-    const [row] = await this.client<JobQueueRow>(TABLE_NAME)
-      .where({ id: nextJob.id })
-      .update({
-        run_after: this.client.raw(`NOW() + (? || ' milliseconds')::interval`, [
-          String(this.intervalMs),
-        ]),
-        updated_at: this.client.fn.now(),
-      })
-      .returning([...RETURNING_COLUMNS]);
+      const [row] = await trx<JobQueueRow>(TABLE_NAME)
+        .where({ id: nextJob.id })
+        .update({
+          run_after: getNextRunAfterExpression(trx, this.intervalMs),
+          updated_at: trx.fn.now(),
+        })
+        .returning([...RETURNING_COLUMNS]);
 
-    return row ? mapRowToRecord(row) : null;
+      return row ? mapRowToRecord(row) : null;
+    });
   }
 
   private async deleteJob(jobId: string): Promise<void> {
@@ -173,9 +181,7 @@ export class MinuteJobQueue {
       .update({
         attempts: this.client.raw("attempts + 1"),
         last_error: message,
-        run_after: this.client.raw(`NOW() + (? || ' milliseconds')::interval`, [
-          String(this.intervalMs),
-        ]),
+        run_after: getNextRunAfterExpression(this.client, this.intervalMs),
         updated_at: this.client.fn.now(),
       });
   }

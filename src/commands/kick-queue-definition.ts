@@ -23,6 +23,13 @@ const kickQueueBuilder = new SlashCommandBuilder()
   )
   .addSubcommand((sub) =>
     sub
+      .setName("checkall")
+      .setDescription(
+        "Поставить всех участников сервера в очередь и отправку проверки, кроме исключённых",
+      ),
+  )
+  .addSubcommand((sub) =>
+    sub
       .setName("add")
       .setDescription("Добавить пользователя в очередь на кик")
       .addUserOption((option) =>
