@@ -1,19 +1,22 @@
 import { describe, expect, it } from "vitest";
 import { GatewayIntentBits } from "discord.js";
-import { CLIENT_INTENTS, createDiscordClient } from "../src/discord-client";
+import discordClient from "../src/discord-client";
 
 describe("discord client configuration", () => {
   it("includes the guild members intent for full guild member fetches", () => {
-    expect(CLIENT_INTENTS).toContain(GatewayIntentBits.GuildMembers);
+    expect(discordClient.intents).toContain(GatewayIntentBits.GuildMembers);
   });
 
-  it("creates a client configured with the shared intents", () => {
-    const client = createDiscordClient();
+  it("returns a singleton client configured with shared intents", () => {
+    const client = discordClient.client;
+    const sameClient = discordClient.client;
 
-    for (const intent of CLIENT_INTENTS) {
+    for (const intent of discordClient.intents) {
       expect(client.options.intents.has(intent)).toBe(true);
     }
 
-    client.destroy();
+    expect(sameClient).toBe(client);
+
+    discordClient.destroy();
   });
 });

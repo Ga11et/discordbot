@@ -194,9 +194,9 @@ describe("interaction access", () => {
     expect(
       commandAccess.getInteractionAccessResult(interaction, accessConfig),
     ).toEqual({
-      allowed: true,
+      allowed: false,
       commandId: "bd.gratzmessage.create",
-      reason: null,
+      reason: "ROLE_NOT_ALLOWED",
     });
   });
 

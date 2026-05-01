@@ -42,13 +42,9 @@ export type SupportedAccessInteraction =
   | ModalSubmitInteraction;
 
 export const TESTER_ALLOWED_COMMAND_IDS: readonly string[] = [
-  "bd.gratz",
-  "bd.gratzmessage.create",
   "bd.gratzmessage.get",
   "bd.gratzmessage.list",
-  "kickqueue.add",
   "kickqueue.list",
-  "kickqueue.remove",
 ];
 
 const PUBLIC_COMMAND_IDS = new Set(["bd.me", "bd.set", "bd.list"]);

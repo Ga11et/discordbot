@@ -1,14 +1,25 @@
 import { Client, GatewayIntentBits } from "discord.js";
 
-export const CLIENT_INTENTS = [
-  GatewayIntentBits.Guilds,
-  GatewayIntentBits.GuildMembers,
-  GatewayIntentBits.GuildMessages,
-  GatewayIntentBits.MessageContent,
-] as const;
+class DiscordClient {
+  public readonly client: Client;
+  public readonly intents = [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMembers,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent,
+  ] as const;
 
-export function createDiscordClient(): Client {
-  return new Client({
-    intents: [...CLIENT_INTENTS],
-  });
+  constructor() {
+    this.client = new Client({
+      intents: [...this.intents],
+    });
+  }
+
+  public destroy(): void {
+    this.client.destroy();
+  }
 }
+
+const discordClient = new DiscordClient();
+
+export default discordClient;

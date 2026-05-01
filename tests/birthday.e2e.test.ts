@@ -1,11 +1,5 @@
 import { describe, it, expect, beforeAll, beforeEach, afterAll } from "vitest";
-import {
-  closeTestDb,
-  getTestClient,
-  resetBirthdaysTable,
-  resetGratzMessagesTable,
-  setupTestDb,
-} from "./helpers/test-db";
+import testDb from "./helpers/test-db";
 import { createBirthdayService } from "../src/birthdays/service";
 import { createGratzService } from "../src/birthdays/gratz-service";
 import { BirthdayCommandProcessor } from "../src/birthdays/processor";
@@ -15,7 +9,7 @@ const ACTOR_ID = "111";
 const OTHER_USER_ID = "222";
 
 function createProcessor(): BirthdayCommandProcessor {
-  const client = getTestClient();
+  const client = testDb.client();
   const service = createBirthdayService(client);
   const gratz = createGratzService(client);
   return new BirthdayCommandProcessor(service, gratz);
@@ -23,16 +17,16 @@ function createProcessor(): BirthdayCommandProcessor {
 
 describe("BirthdayCommandProcessor (e2e)", () => {
   beforeAll(async () => {
-    await setupTestDb();
+    await testDb.init();
   });
 
   beforeEach(async () => {
-    await resetBirthdaysTable();
-    await resetGratzMessagesTable();
+    await testDb.resetBd();
+    await testDb.resetGratz();
   });
 
   afterAll(async () => {
-    await closeTestDb();
+    await testDb.close();
   });
 
   it("sets birthday for current user and retrieves it via /bd me", async () => {
@@ -161,7 +155,7 @@ describe("BirthdayCommandProcessor (e2e)", () => {
 
   it("returns the same gratz message id that is stored in the database", async () => {
     const processor = createProcessor();
-    const client = getTestClient();
+    const client = testDb.client();
 
     const createResult = await processor.createGratzMessage(
       "Проверка совпадения id сообщения",
@@ -181,7 +175,7 @@ describe("BirthdayCommandProcessor (e2e)", () => {
 
   it("keeps gratz message ids correct after deleting the last message and creating a new one", async () => {
     const processor = createProcessor();
-    const client = getTestClient();
+    const client = testDb.client();
 
     const firstText = "Первое сообщение для проверки id";
     const secondText = "Второе сообщение для проверки id";

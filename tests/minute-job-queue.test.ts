@@ -8,28 +8,23 @@ import {
   vi,
 } from "vitest";
 import { createMinuteJobQueue } from "../src/jobs/minute-job-queue";
-import {
-  closeTestDb,
-  getTestClient,
-  resetJobQueueTable,
-  setupTestDb,
-} from "./helpers/test-db";
+import testDb from "./helpers/test-db";
 
 describe("MinuteJobQueue", () => {
   beforeAll(async () => {
-    await setupTestDb();
+    await testDb.init();
   });
 
   beforeEach(async () => {
-    await resetJobQueueTable();
+    await testDb.resetJobQ();
   });
 
   afterAll(async () => {
-    await closeTestDb();
+    await testDb.close();
   });
 
   it("deletes a successful job from the database", async () => {
-    const queue = createMinuteJobQueue(getTestClient(), 60_000);
+    const queue = createMinuteJobQueue(testDb.client(), 60_000);
     await queue.enqueue("test.job", { value: 1 });
 
     const executed = vi.fn().mockResolvedValue(undefined);
@@ -40,7 +35,7 @@ describe("MinuteJobQueue", () => {
   });
 
   it("keeps a failed job queued with incremented attempts and a later run_after", async () => {
-    const queue = createMinuteJobQueue(getTestClient(), 60_000);
+    const queue = createMinuteJobQueue(testDb.client(), 60_000);
     const job = await queue.enqueue("test.job", { value: 2 });
 
     const executed = vi.fn().mockRejectedValue(new Error("boom"));
@@ -58,7 +53,7 @@ describe("MinuteJobQueue", () => {
   });
 
   it("runs only one job per tick", async () => {
-    const queue = createMinuteJobQueue(getTestClient(), 60_000);
+    const queue = createMinuteJobQueue(testDb.client(), 60_000);
     await queue.enqueue("test.job", { value: 1 });
     await queue.enqueue("test.job", { value: 2 });
 
@@ -73,7 +68,7 @@ describe("MinuteJobQueue", () => {
   });
 
   it("does not execute the same job twice during overlapping runNext calls", async () => {
-    const queue = createMinuteJobQueue(getTestClient(), 60_000);
+    const queue = createMinuteJobQueue(testDb.client(), 60_000);
     await queue.enqueue("test.job", { value: 3 });
 
     let notifyExecutionStarted: (() => void) | null = null;
@@ -102,10 +97,10 @@ describe("MinuteJobQueue", () => {
   });
 
   it("keeps queued jobs available across service re-instantiation", async () => {
-    const firstQueue = createMinuteJobQueue(getTestClient(), 60_000);
+    const firstQueue = createMinuteJobQueue(testDb.client(), 60_000);
     await firstQueue.enqueue("test.job", { value: 4 });
 
-    const secondQueue = createMinuteJobQueue(getTestClient(), 60_000);
+    const secondQueue = createMinuteJobQueue(testDb.client(), 60_000);
     const executed = vi.fn().mockResolvedValue(undefined);
 
     await expect(secondQueue.runNext(executed)).resolves.toBe(true);
@@ -114,8 +109,8 @@ describe("MinuteJobQueue", () => {
   });
 
   it("does not allow two queue instances to claim the same due job", async () => {
-    const firstQueue = createMinuteJobQueue(getTestClient(), 60_000);
-    const secondQueue = createMinuteJobQueue(getTestClient(), 60_000);
+    const firstQueue = createMinuteJobQueue(testDb.client(), 60_000);
+    const secondQueue = createMinuteJobQueue(testDb.client(), 60_000);
     await firstQueue.enqueue("test.job", { value: 5 });
 
     let notifyExecutionStarted: (() => void) | null = null;

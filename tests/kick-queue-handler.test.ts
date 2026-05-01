@@ -386,7 +386,7 @@ describe("handleKickQueueCommand", () => {
 
     expect(service.listPendingKickUsers).toHaveBeenCalledWith("guild-1");
     expect(reply).toHaveBeenCalledWith({
-      content: "1. <@user-1> (`user-1`)\n2. <@user-2> (`user-2`)",
+      content: "1. <@user-1>, 2. <@user-2>",
       flags: MessageFlags.Ephemeral,
     });
   });

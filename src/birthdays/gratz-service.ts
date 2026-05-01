@@ -1,5 +1,5 @@
 import type { Knex } from "knex";
-import { db } from "../db";
+import db from "../db";
 
 const TABLE_NAME = "birthday_gratz_messages";
 const LIST_LIMIT = 100;
@@ -55,7 +55,9 @@ export class GratzService {
     return mapRowToRecord(row);
   }
 
-  async listGratzMessages(limit: number = LIST_LIMIT): Promise<GratzMessageRecord[]> {
+  async listGratzMessages(
+    limit: number = LIST_LIMIT,
+  ): Promise<GratzMessageRecord[]> {
     const rows = await this.client<GratzMessageRow>(TABLE_NAME)
       .select("id", "message_text")
       .orderBy("id", "asc")
@@ -78,7 +80,9 @@ export class GratzService {
   }
 }
 
-export function createGratzService(customClient: Knex = db): GratzService {
+export function createGratzService(
+  customClient: Knex = db.client,
+): GratzService {
   return new GratzService(customClient);
 }
 

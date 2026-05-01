@@ -10,7 +10,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-discordbot_user}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-discordbot_pass}
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "${POSTGRES_PORT:-5232}:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
 
@@ -23,7 +23,7 @@ services:
       POSTGRES_USER: ${POSTGRES_TEST_USER:-discordbot_user_test}
       POSTGRES_PASSWORD: ${POSTGRES_TEST_PASSWORD:-discordbot_pass_test}
     ports:
-      - "${POSTGRES_TEST_PORT:-55432}:5432"
+      - "${POSTGRES_TEST_PORT:-55232}:5432"
     volumes:
       - postgres-test-data:/var/lib/postgresql/data
 

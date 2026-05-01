@@ -1,27 +1,22 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { createKickQueueService } from "../src/members/kick-queue-service";
-import {
-  closeTestDb,
-  getTestClient,
-  resetKickQueueTable,
-  setupTestDb,
-} from "./helpers/test-db";
+import testDb from "./helpers/test-db";
 
 describe("KickQueueService (e2e)", () => {
   beforeAll(async () => {
-    await setupTestDb();
+    await testDb.init();
   });
 
   beforeEach(async () => {
-    await resetKickQueueTable();
+    await testDb.resetKickQ();
   });
 
   afterAll(async () => {
-    await closeTestDb();
+    await testDb.close();
   });
 
   it("adds and lists users only for the requested guild", async () => {
-    const service = createKickQueueService(getTestClient());
+    const service = createKickQueueService(testDb.client());
 
     await expect(service.addPendingKickUser("guild-1", "user-1")).resolves.toBe(
       true,
@@ -39,7 +34,7 @@ describe("KickQueueService (e2e)", () => {
   });
 
   it("keeps add idempotent within the same guild", async () => {
-    const service = createKickQueueService(getTestClient());
+    const service = createKickQueueService(testDb.client());
 
     await expect(service.addPendingKickUser("guild-1", "user-1")).resolves.toBe(
       true,
@@ -57,7 +52,7 @@ describe("KickQueueService (e2e)", () => {
   });
 
   it("allows the same user to be queued in multiple guilds", async () => {
-    const service = createKickQueueService(getTestClient());
+    const service = createKickQueueService(testDb.client());
 
     await expect(service.addPendingKickUser("guild-1", "user-1")).resolves.toBe(
       true,
@@ -81,7 +76,7 @@ describe("KickQueueService (e2e)", () => {
   });
 
   it("removes a user only from the targeted guild", async () => {
-    const service = createKickQueueService(getTestClient());
+    const service = createKickQueueService(testDb.client());
 
     await expect(service.addPendingKickUser("guild-1", "user-1")).resolves.toBe(
       true,
@@ -103,7 +98,7 @@ describe("KickQueueService (e2e)", () => {
   });
 
   it("returns false when removing a missing user", async () => {
-    const service = createKickQueueService(getTestClient());
+    const service = createKickQueueService(testDb.client());
 
     await expect(
       service.removePendingKickUser("guild-1", "missing-user"),

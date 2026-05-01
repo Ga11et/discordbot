@@ -42,10 +42,10 @@ describe("sendKickQueueCheckMessage", () => {
 
     expect(send).toHaveBeenCalledTimes(1);
     const payload = vi.mocked(send).mock.calls[0][0];
+    expect(payload.content).toContain("Это важное сообщение!");
     expect(payload.content).toContain(
-      "Вы добавлены в очередь на кик с сервера.",
+      "Это плановая очистка неактивных аккаунтов и незаинтересованных пользователей, которая проводится раз в 6–12 месяцев",
     );
-    expect(payload.content).toContain("Если вы не ответите на это сообщение");
     expect(payload.components).toHaveLength(1);
 
     const row = payload.components?.[0]?.toJSON();

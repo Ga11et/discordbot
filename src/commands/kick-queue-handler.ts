@@ -65,8 +65,8 @@ async function respond(
 
 function formatPendingKickList(userIds: string[]): string {
   return userIds
-    .map((userId, index) => `${index + 1}. <@${userId}> (\`${userId}\`)`)
-    .join("\n");
+    .map((userId, index) => `${index + 1}. <@${userId}>`)
+    .join(", ");
 }
 
 async function fetchGuildMemberByUserId(

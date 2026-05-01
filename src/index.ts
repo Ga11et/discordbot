@@ -1,104 +1,41 @@
 import "dotenv/config";
-import { Events, type Message } from "discord.js";
-import { ensureDatabaseConnection, runMigrations } from "./db";
-import commandRegister from "./commands/register";
-import birthdayHandler from "./commands/birthday-handler";
-import kickQueueHandler from "./commands/kick-queue-handler";
-import kickQueueCheck from "./commands/kick-queue-check";
-import birthdayAccess from "./commands/birthday-access";
-import kickQueueAccess from "./commands/kick-queue-access";
-import { createDiscordClient } from "./discord-client";
-import { createKickQueueJobExecutor } from "./jobs/kick-queue-job-executor";
-import { minuteJobQueue } from "./jobs/minute-job-queue";
+import { bootstrap } from "./bootstrap";
 
-const token = process.env.DISCORD_TOKEN;
-if (!token) {
-  throw new Error(
-    "DISCORD_TOKEN is not set. Add it to your environment or .env file.",
-  );
-}
+let isShuttingDown = false;
 
-const birthdayAccessConfig = birthdayAccess.loadConfig();
-const kickQueueAccessConfig = kickQueueAccess.loadConfig();
-
-const client = createDiscordClient();
-
-client.once(Events.ClientReady, (readyClient) => {
-  console.log(`Бот запущен как ${readyClient.user.tag}`);
-  minuteJobQueue.start(createKickQueueJobExecutor(readyClient));
-});
-
-client.on(Events.MessageCreate, (message: Message) => {
-  if (message.author.bot) return;
-
-  if (message.content === "!ping") {
-    void message.reply("Pong!");
-  }
-});
-
-client.on(Events.InteractionCreate, async (interaction) => {
-  if (interaction.isModalSubmit()) {
-    if (interaction.customId.startsWith("bd:")) {
-      const hasAccess = await birthdayAccess.ensureAccess(
-        interaction,
-        birthdayAccessConfig,
-      );
-      if (!hasAccess) {
-        return;
-      }
-    }
-
-    const handled = await birthdayHandler.handleModalSubmit(interaction);
-    if (handled) {
-      return;
-    }
-  }
-
-  if (interaction.isButton()) {
-    const handled = await kickQueueCheck.handleButtonInteraction(interaction);
-    if (handled) {
-      return;
-    }
-  }
-
-  if (!interaction.isChatInputCommand()) return;
-  if (interaction.commandName === "kickqueue") {
-    const hasAccess = await kickQueueAccess.ensureAccess(
-      interaction,
-      kickQueueAccessConfig,
-    );
-    if (!hasAccess) {
-      return;
-    }
-
-    await kickQueueHandler.handleCommand(interaction);
+async function shutdown(
+  signal: NodeJS.Signals,
+  stop: () => Promise<void>,
+): Promise<void> {
+  if (isShuttingDown) {
     return;
   }
 
-  if (interaction.commandName === "bd") {
-    const hasAccess = await birthdayAccess.ensureAccess(
-      interaction,
-      birthdayAccessConfig,
-    );
-    if (!hasAccess) {
-      return;
-    }
+  isShuttingDown = true;
+  console.log(`Получен сигнал ${signal}, начинаю завершение работы...`);
 
-    await birthdayHandler.handleCommand(interaction);
-    return;
+  try {
+    await stop();
+    process.exit(0);
+  } catch (error) {
+    console.error("Ошибка при завершении работы", error);
+    process.exit(1);
   }
-
-  return;
-});
-
-async function bootstrap(): Promise<void> {
-  await ensureDatabaseConnection();
-  await runMigrations();
-  await commandRegister.register();
-  await client.login(token);
 }
 
-void bootstrap().catch((error) => {
+async function main(): Promise<void> {
+  const runtime = await bootstrap();
+
+  process.once("SIGINT", () => {
+    void shutdown("SIGINT", runtime.stop);
+  });
+
+  process.once("SIGTERM", () => {
+    void shutdown("SIGTERM", runtime.stop);
+  });
+}
+
+void main().catch((error) => {
   console.error("Не удалось запустить бота", error);
   process.exit(1);
 });

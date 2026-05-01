@@ -8,73 +8,82 @@ types.setTypeParser(TIMESTAMPTZ_OID, (value) => value);
 
 type ConnectionOverrides = Partial<Knex.PgConnectionConfig>;
 
-function resolveDefaultConnection(): Knex.PgConnectionConfig {
-  const {
-    POSTGRES_HOST = "localhost",
-    POSTGRES_PORT = "5432",
-    POSTGRES_DB = "discordbot_db",
-    POSTGRES_USER = "discordbot_user",
-    POSTGRES_PASSWORD = "discordbot_pass",
-  } = process.env;
+class Database {
+  public readonly client: Knex;
 
-  return {
-    host: POSTGRES_HOST,
-    port: Number(POSTGRES_PORT),
-    database: POSTGRES_DB,
-    user: POSTGRES_USER,
-    password: POSTGRES_PASSWORD,
-  };
-}
+  constructor() {
+    this.client = this.createClient();
+  }
 
-export function createKnexClient(overrides?: ConnectionOverrides): Knex {
-  const baseConnection = resolveDefaultConnection();
-  const connection = {
-    ...baseConnection,
-    ...overrides,
-  };
+  private defaultConnection(): Knex.PgConnectionConfig {
+    const {
+      POSTGRES_HOST = "localhost",
+      POSTGRES_PORT = "5432",
+      POSTGRES_DB = "discordbot_db",
+      POSTGRES_USER = "discordbot_user",
+      POSTGRES_PASSWORD = "discordbot_pass",
+    } = process.env;
 
-  return knex({
-    client: "pg",
-    connection,
-    pool: {
-      min: 0,
-      max: 10,
-    },
-  });
-}
+    return {
+      host: POSTGRES_HOST,
+      port: Number(POSTGRES_PORT),
+      database: POSTGRES_DB,
+      user: POSTGRES_USER,
+      password: POSTGRES_PASSWORD,
+    };
+  }
 
-export const db = createKnexClient();
+  public createClient(overrides?: ConnectionOverrides): Knex {
+    const connection = {
+      ...this.defaultConnection(),
+      ...overrides,
+    };
 
-/**
- * Performs a lightweight connectivity check to ensure the pool can reach PostgreSQL.
- */
-export async function ensureDatabaseConnection(): Promise<void> {
-  await db.raw("SELECT 1");
-  console.log("Подключение к PostgreSQL установлено");
-}
+    return knex({
+      client: "pg",
+      connection,
+      pool: {
+        min: 0,
+        max: 10,
+      },
+    });
+  }
 
-function loadMigrationFiles(): string[] {
-  const migrationsDir = join(process.cwd(), "migrations");
-  try {
-    return readdirSync(migrationsDir)
-      .filter((file) => file.endsWith(".sql"))
-      .sort()
-      .map((file) => readFileSync(join(migrationsDir, file), "utf-8"));
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
-      return [];
+  /**
+   * Performs a lightweight connectivity check to ensure the pool can reach PostgreSQL.
+   */
+  public async ensureConnection(): Promise<void> {
+    await this.client.raw("SELECT 1");
+    console.log("Подключение к PostgreSQL установлено");
+  }
+
+  private migFiles(): string[] {
+    const migrationsDir = join(process.cwd(), "migrations");
+    try {
+      return readdirSync(migrationsDir)
+        .filter((file) => file.endsWith(".sql"))
+        .sort()
+        .map((file) => readFileSync(join(migrationsDir, file), "utf-8"));
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+        return [];
+      }
+      throw error;
     }
-    throw error;
+  }
+
+  public async runMigrations(): Promise<void> {
+    const migrations = this.migFiles();
+    for (const sql of migrations) {
+      await this.client.raw(sql);
+    }
+  }
+
+  public async closeConnection(): Promise<void> {
+    await this.client.destroy();
   }
 }
 
-export async function runMigrationsOnClient(targetDb: Knex): Promise<void> {
-  const migrations = loadMigrationFiles();
-  for (const sql of migrations) {
-    await targetDb.raw(sql);
-  }
-}
+const db = new Database();
 
-export async function runMigrations(): Promise<void> {
-  await runMigrationsOnClient(db);
-}
+export default db;

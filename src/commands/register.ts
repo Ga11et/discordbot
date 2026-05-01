@@ -7,15 +7,13 @@ const slashCommandDefinitions = [
   kickQueueCommandDefinition,
 ];
 
-async function register(): Promise<void> {
-  const token = process.env.DISCORD_TOKEN;
-  const clientId = process.env.DISCORD_CLIENT_ID;
-  if (!token) {
-    throw new Error("DISCORD_TOKEN is not set");
-  }
-  if (!clientId) {
-    throw new Error("DISCORD_CLIENT_ID is not set");
-  }
+interface CommandRegistrationConfig {
+  token: string;
+  clientId: string;
+}
+
+async function register(config: CommandRegistrationConfig): Promise<void> {
+  const { token, clientId } = config;
 
   const rest = new REST({ version: "10" }).setToken(token);
 

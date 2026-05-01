@@ -1,5 +1,5 @@
 import type { Knex } from "knex";
-import { db } from "../db";
+import db from "../db";
 import { fromIsoUtcDateString, toIsoUtcDateString } from "./date-utils";
 
 export interface BirthdayRecord {
@@ -96,7 +96,7 @@ export class BirthdayService {
 }
 
 export function createBirthdayService(
-  customClient: Knex = db,
+  customClient: Knex = db.client,
 ): BirthdayService {
   return new BirthdayService(customClient);
 }

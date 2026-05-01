@@ -53,7 +53,7 @@ const accessConfig: CommandAccessConfig = {
 };
 
 describe("birthday access wrapper", () => {
-  it("allows interaction without replying when centralized access allows it", async () => {
+  it("denies interaction when centralized access denies it", async () => {
     const { followUp, interaction, reply } = createFakeInteraction({
       roleIds: ["role-tester"],
     });
@@ -63,9 +63,7 @@ describe("birthday access wrapper", () => {
       accessConfig,
     );
 
-    expect(allowed).toBe(true);
-    expect(reply).not.toHaveBeenCalled();
-    expect(followUp).not.toHaveBeenCalled();
+    expect(allowed).toBe(false);
   });
 
   it("denies interaction with an ephemeral reply when centralized access denies it", async () => {

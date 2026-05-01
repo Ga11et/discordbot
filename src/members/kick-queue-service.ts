@@ -1,5 +1,5 @@
 import type { Knex } from "knex";
-import { db } from "../db";
+import db from "../db";
 
 const TABLE_NAME = "kick_queue";
 const LIST_LIMIT = 100;
@@ -94,7 +94,7 @@ export class KickQueueService {
 }
 
 export function createKickQueueService(
-  customClient: Knex = db,
+  customClient: Knex = db.client,
 ): KickQueueService {
   return new KickQueueService(customClient);
 }

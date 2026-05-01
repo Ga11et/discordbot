@@ -1,8 +1,8 @@
 import type { Knex } from "knex";
-import { db } from "../db";
+import db from "../db";
 
 const TABLE_NAME = "job_queue";
-const DEFAULT_INTERVAL_MS = 60_000;
+const DEFAULT_INTERVAL_MS = 600_000;
 const RETURNING_COLUMNS = [
   "id",
   "type",
@@ -188,7 +188,7 @@ export class MinuteJobQueue {
 }
 
 export function createMinuteJobQueue(
-  customClient: Knex = db,
+  customClient: Knex = db.client,
   intervalMs: number = DEFAULT_INTERVAL_MS,
 ): MinuteJobQueue {
   return new MinuteJobQueue(customClient, intervalMs);
