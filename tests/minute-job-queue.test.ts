@@ -7,10 +7,11 @@ import {
   it,
   vi,
 } from "vitest";
-import { createMinuteJobQueue } from "../src/jobs/minute-job-queue";
+import JobExecutor from "../src/jobs/JobExecutor";
+import JobManager from "../src/jobs/JobManager";
 import testDb from "./helpers/test-db";
 
-describe("MinuteJobQueue", () => {
+describe("JobManager + JobExecutor", () => {
   beforeAll(async () => {
     await testDb.init();
   });
@@ -24,25 +25,30 @@ describe("MinuteJobQueue", () => {
   });
 
   it("deletes a successful job from the database", async () => {
-    const queue = createMinuteJobQueue(testDb.client(), 60_000);
-    await queue.enqueue("test.job", { value: 1 });
-
+    const manager = new JobManager(testDb.client(), 60_000);
     const executed = vi.fn().mockResolvedValue(undefined);
+    const runner = new JobExecutor(manager, {
+      "test.job": executed,
+    });
 
-    await expect(queue.runNext(executed)).resolves.toBe(true);
+    await manager.enqueue("test.job", { value: 1 });
+    await expect(runner.runNext()).resolves.toBe(true);
     expect(executed).toHaveBeenCalledTimes(1);
-    await expect(queue.list()).resolves.toEqual([]);
+    await expect(manager.list()).resolves.toEqual([]);
   });
 
   it("keeps a failed job queued with incremented attempts and a later run_after", async () => {
-    const queue = createMinuteJobQueue(testDb.client(), 60_000);
-    const job = await queue.enqueue("test.job", { value: 2 });
-
+    const manager = new JobManager(testDb.client(), 60_000);
     const executed = vi.fn().mockRejectedValue(new Error("boom"));
+    const runner = new JobExecutor(manager, {
+      "test.job": executed,
+    });
 
-    await expect(queue.runNext(executed)).resolves.toBe(true);
+    const job = await manager.enqueue("test.job", { value: 2 });
 
-    const queuedJobs = await queue.list();
+    await expect(runner.runNext()).resolves.toBe(true);
+
+    const queuedJobs = await manager.list();
     expect(queuedJobs).toHaveLength(1);
     expect(queuedJobs[0].id).toBe(job.id);
     expect(queuedJobs[0].attempts).toBe(1);
@@ -53,23 +59,25 @@ describe("MinuteJobQueue", () => {
   });
 
   it("runs only one job per tick", async () => {
-    const queue = createMinuteJobQueue(testDb.client(), 60_000);
-    await queue.enqueue("test.job", { value: 1 });
-    await queue.enqueue("test.job", { value: 2 });
-
+    const manager = new JobManager(testDb.client(), 60_000);
     const executed = vi.fn().mockResolvedValue(undefined);
+    const runner = new JobExecutor(manager, {
+      "test.job": executed,
+    });
 
-    await expect(queue.runNext(executed)).resolves.toBe(true);
+    await manager.enqueue("test.job", { value: 1 });
+    await manager.enqueue("test.job", { value: 2 });
+
+    await expect(runner.runNext()).resolves.toBe(true);
 
     expect(executed).toHaveBeenCalledTimes(1);
-    const queuedJobs = await queue.list();
+    const queuedJobs = await manager.list();
     expect(queuedJobs).toHaveLength(1);
     expect(queuedJobs[0].payload).toEqual({ value: 2 });
   });
 
   it("does not execute the same job twice during overlapping runNext calls", async () => {
-    const queue = createMinuteJobQueue(testDb.client(), 60_000);
-    await queue.enqueue("test.job", { value: 3 });
+    const manager = new JobManager(testDb.client(), 60_000);
 
     let notifyExecutionStarted: (() => void) | null = null;
     const executionStarted = new Promise<void>((resolve) => {
@@ -84,8 +92,14 @@ describe("MinuteJobQueue", () => {
         }),
     );
 
-    const firstRun = queue.runNext(executor);
-    const secondRun = queue.runNext(executor);
+    const runner = new JobExecutor(manager, {
+      "test.job": executor,
+    });
+
+    await manager.enqueue("test.job", { value: 3 });
+
+    const firstRun = runner.runNext();
+    const secondRun = runner.runNext();
 
     await expect(secondRun).resolves.toBe(false);
     await executionStarted;
@@ -93,25 +107,28 @@ describe("MinuteJobQueue", () => {
 
     resolveExecution();
     await expect(firstRun).resolves.toBe(true);
-    await expect(queue.list()).resolves.toEqual([]);
+    await expect(manager.list()).resolves.toEqual([]);
   });
 
   it("keeps queued jobs available across service re-instantiation", async () => {
-    const firstQueue = createMinuteJobQueue(testDb.client(), 60_000);
-    await firstQueue.enqueue("test.job", { value: 4 });
+    const firstManager = new JobManager(testDb.client(), 60_000);
+    await firstManager.enqueue("test.job", { value: 4 });
 
-    const secondQueue = createMinuteJobQueue(testDb.client(), 60_000);
+    const secondManager = new JobManager(testDb.client(), 60_000);
     const executed = vi.fn().mockResolvedValue(undefined);
+    const runner = new JobExecutor(secondManager, {
+      "test.job": executed,
+    });
 
-    await expect(secondQueue.runNext(executed)).resolves.toBe(true);
+    await expect(runner.runNext()).resolves.toBe(true);
     expect(executed).toHaveBeenCalledTimes(1);
-    await expect(secondQueue.list()).resolves.toEqual([]);
+    await expect(secondManager.list()).resolves.toEqual([]);
   });
 
   it("does not allow two queue instances to claim the same due job", async () => {
-    const firstQueue = createMinuteJobQueue(testDb.client(), 60_000);
-    const secondQueue = createMinuteJobQueue(testDb.client(), 60_000);
-    await firstQueue.enqueue("test.job", { value: 5 });
+    const firstManager = new JobManager(testDb.client(), 60_000);
+    const secondManager = new JobManager(testDb.client(), 60_000);
+    await firstManager.enqueue("test.job", { value: 5 });
 
     let notifyExecutionStarted: (() => void) | null = null;
     const executionStarted = new Promise<void>((resolve) => {
@@ -127,15 +144,22 @@ describe("MinuteJobQueue", () => {
     );
     const secondExecutor = vi.fn().mockResolvedValue(undefined);
 
-    const firstRun = firstQueue.runNext(firstExecutor);
+    const firstRunner = new JobExecutor(firstManager, {
+      "test.job": firstExecutor,
+    });
+    const secondRunner = new JobExecutor(secondManager, {
+      "test.job": secondExecutor,
+    });
+
+    const firstRun = firstRunner.runNext();
     await executionStarted;
 
-    const secondRun = secondQueue.runNext(secondExecutor);
+    const secondRun = secondRunner.runNext();
     await expect(secondRun).resolves.toBe(false);
     expect(secondExecutor).not.toHaveBeenCalled();
 
     resolveExecution();
     await expect(firstRun).resolves.toBe(true);
-    await expect(firstQueue.list()).resolves.toEqual([]);
+    await expect(firstManager.list()).resolves.toEqual([]);
   });
 });

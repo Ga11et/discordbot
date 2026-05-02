@@ -1,23 +1,25 @@
-import type {
-  ChatInputCommandInteraction,
-  InteractionReplyOptions,
-  ModalSubmitInteraction,
+import {
+  MessageFlags,
+  type ChatInputCommandInteraction,
+  type InteractionReplyOptions,
 } from "discord.js";
-import commandAccess, { type CommandAccessConfig } from "./command-access";
+import commandAccess, {
+  type CommandAccessConfig,
+} from "../shared/command-access";
 
-type BirthdayInteraction = ChatInputCommandInteraction | ModalSubmitInteraction;
+const EPHEMERAL_FLAGS = MessageFlags.Ephemeral;
 
 function loadConfig(env: NodeJS.ProcessEnv = process.env): CommandAccessConfig {
   return commandAccess.loadConfig(env);
 }
 
 async function replyToInteraction(
-  interaction: BirthdayInteraction,
+  interaction: ChatInputCommandInteraction,
   content: string,
 ): Promise<void> {
   const payload: InteractionReplyOptions = {
     content,
-    ephemeral: true,
+    flags: EPHEMERAL_FLAGS,
   };
 
   if (interaction.deferred || interaction.replied) {
@@ -29,7 +31,7 @@ async function replyToInteraction(
 }
 
 async function ensureAccess(
-  interaction: BirthdayInteraction,
+  interaction: ChatInputCommandInteraction,
   config: CommandAccessConfig,
 ): Promise<boolean> {
   const accessResult = commandAccess.getInteractionAccessResult(
@@ -42,14 +44,14 @@ async function ensureAccess(
 
   await replyToInteraction(
     interaction,
-    commandAccess.getAccessDeniedMessage("bd", config, accessResult),
+    commandAccess.getAccessDeniedMessage("kickqueue", config, accessResult),
   );
   return false;
 }
 
-const birthdayAccess = {
+const kickQueueAccess = {
   ensureAccess,
   loadConfig,
 };
 
-export default birthdayAccess;
+export default kickQueueAccess;

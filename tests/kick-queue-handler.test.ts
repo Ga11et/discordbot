@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { MessageFlags, type ChatInputCommandInteraction } from "discord.js";
-import kickQueueHandler from "../src/commands/kick-queue-handler";
+import kickQueueHandler from "../src/commands/kick-queue/handler";
 import type { KickQueueService } from "../src/members/kick-queue-service";
 
 interface FakeGuildMemberOptions {

@@ -1,7 +1,7 @@
 import { MessageFlags, type ChatInputCommandInteraction } from "discord.js";
 import { describe, expect, it, vi } from "vitest";
-import kickQueueAccess from "../src/commands/kick-queue-access";
-import type { CommandAccessConfig } from "../src/commands/command-access";
+import kickQueueAccess from "../src/commands/kick-queue/access";
+import type { CommandAccessConfig } from "../src/commands/shared/command-access";
 
 interface FakeInteractionOptions {
   channelId?: string | null;

@@ -1,17 +1,15 @@
 import type { Client } from "discord.js";
-import kickQueueCheck from "../commands/kick-queue-check";
-import type { JobQueueRecord } from "./minute-job-queue";
+import kickQueueCheck from "../../commands/kick-queue/check";
+import { JobHandler, JobRecordLike } from "./types";
 
 export const KICK_QUEUE_SEND_CHECK_MESSAGE_JOB = "kickqueue.send-check-message";
 
-interface KickQueueSendCheckMessagePayload {
+interface JobPayload {
   guildId: string;
   userId: string;
 }
 
-function isKickQueueSendCheckMessagePayload(
-  payload: unknown,
-): payload is KickQueueSendCheckMessagePayload {
+function checkMessagePayload(payload: unknown): payload is JobPayload {
   return (
     typeof payload === "object" &&
     payload !== null &&
@@ -22,13 +20,9 @@ function isKickQueueSendCheckMessagePayload(
   );
 }
 
-export function createKickQueueJobExecutor(client: Client) {
-  return async function executeKickQueueJob(job: JobQueueRecord): Promise<void> {
-    if (job.type !== KICK_QUEUE_SEND_CHECK_MESSAGE_JOB) {
-      throw new Error(`Unknown job type: ${job.type}`);
-    }
-
-    if (!isKickQueueSendCheckMessagePayload(job.payload)) {
+export function createKickQueueHandler(client: Client): JobHandler {
+  return async (job: JobRecordLike): Promise<void> => {
+    if (!checkMessagePayload(job.payload)) {
       throw new Error("Invalid kickqueue send-check-message job payload");
     }
 

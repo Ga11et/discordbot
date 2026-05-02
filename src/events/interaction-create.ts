@@ -1,10 +1,10 @@
 import type { Interaction as DiscordInteraction } from "discord.js";
-import birthdayAccess from "../commands/birthday-access";
-import birthdayHandler from "../commands/birthday-handler";
-import type { CommandAccessConfig } from "../commands/command-access";
-import kickQueueAccess from "../commands/kick-queue-access";
-import kickQueueCheck from "../commands/kick-queue-check";
-import kickQueueHandler from "../commands/kick-queue-handler";
+import birthdayAccess from "../commands/birthday/access";
+import birthdayHandler from "../commands/birthday/handler";
+import type { CommandAccessConfig } from "../commands/shared/command-access";
+import kickQueueAccess from "../commands/kick-queue/access";
+import kickQueueCheck from "../commands/kick-queue/check";
+import kickQueueHandler from "../commands/kick-queue/handler";
 
 class Interaction {
   private readonly birthdayConfig: CommandAccessConfig;

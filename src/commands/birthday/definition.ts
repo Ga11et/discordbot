@@ -98,8 +98,4 @@ const birthdayBuilder = new SlashCommandBuilder()
       ),
   );
 
-export const birthdayCommandDefinition =
-  birthdayBuilder.toJSON() satisfies RESTPostAPIChatInputApplicationCommandsJSONBody;
-
-export const slashCommandDefinitions: RESTPostAPIChatInputApplicationCommandsJSONBody[] =
-  [birthdayCommandDefinition];
+export default birthdayBuilder.toJSON() satisfies RESTPostAPIChatInputApplicationCommandsJSONBody;

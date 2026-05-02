@@ -10,7 +10,7 @@ import {
 import {
   KickQueueService,
   kickQueueService,
-} from "../members/kick-queue-service";
+} from "../../members/kick-queue-service";
 
 const KICK_QUEUE_BUTTON_PREFIX = "kickqueue";
 const STAY_ACTION = "stay";

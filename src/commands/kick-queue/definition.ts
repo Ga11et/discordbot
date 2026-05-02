@@ -63,5 +63,4 @@ const kickQueueBuilder = new SlashCommandBuilder()
       ),
   );
 
-export const kickQueueCommandDefinition =
-  kickQueueBuilder.toJSON() satisfies RESTPostAPIChatInputApplicationCommandsJSONBody;
+export default kickQueueBuilder.toJSON() satisfies RESTPostAPIChatInputApplicationCommandsJSONBody;

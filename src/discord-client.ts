@@ -14,10 +14,6 @@ class DiscordClient {
       intents: [...this.intents],
     });
   }
-
-  public destroy(): void {
-    this.client.destroy();
-  }
 }
 
 const discordClient = new DiscordClient();

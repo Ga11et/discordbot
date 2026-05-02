@@ -1,36 +1,42 @@
 import { Events } from "discord.js";
-import commandRegister from "./commands/register";
-import discordClient from "./discord-client";
+import Registrator from "./commands/Registrator";
+import Database from "./db";
+import DiscordClient from "./discord-client";
 import Interaction from "./events/interaction-create";
 import { handleClientReady } from "./events/ready";
-import { minuteJobQueue } from "./jobs/minute-job-queue";
-import { createKickQueueJobExecutor } from "./jobs/kick-queue-job-executor";
+import JobExecutor from "./jobs/JobExecutor";
+import JobHandlers from "./jobs/JobHandlers";
+import JMProvider from "./jobs/JobManagerProvider";
 
 export interface App {
   stop: () => Promise<void>;
 }
 
 export async function createApp(): Promise<App> {
-  const client = discordClient.client;
+  const discord = DiscordClient.client;
+  const db = Database.client;
 
   const interaction = new Interaction();
 
-  client.once(Events.ClientReady, handleClientReady);
-  client.on(Events.InteractionCreate, interaction.handleInteraction);
+  discord.once(Events.ClientReady, handleClientReady);
+  discord.on(Events.InteractionCreate, interaction.handleInteraction);
 
   const config = loadConfig();
-  await commandRegister.register(config);
 
-  const jobs = createKickQueueJobExecutor(client);
-  minuteJobQueue.start(jobs);
+  await Registrator.register(config);
 
-  await client.login(config.token);
+  const manager = JMProvider.init(db);
+  const handlers = new JobHandlers(discord).handlers();
+  const jobExecutor = new JobExecutor(manager, handlers);
+  jobExecutor.start();
+
+  await discord.login(config.token);
 
   return {
     async stop(): Promise<void> {
-      minuteJobQueue.stop();
-      client.removeAllListeners();
-      discordClient.destroy();
+      jobExecutor.stop();
+      discord.removeAllListeners();
+      discord.destroy();
     },
   };
 }

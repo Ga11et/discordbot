@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import commandAccess, {
   type SupportedAccessInteraction,
-} from "../src/commands/command-access";
+} from "../src/commands/shared/command-access";
 
 const roleConfig = {
   adminRoleIds: ["role-admin"],

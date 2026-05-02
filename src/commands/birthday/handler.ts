@@ -11,8 +11,8 @@ import {
   TextInputBuilder,
   TextInputStyle,
 } from "discord.js";
-import { BirthdayCommandError } from "../birthdays/errors";
-import { createBirthdayCommandProcessor } from "../birthdays/processor";
+import { BirthdayCommandError } from "../../birthdays/errors";
+import { createBirthdayCommandProcessor } from "../../birthdays/processor";
 
 const processor = createBirthdayCommandProcessor();
 export const GRATZ_MESSAGE_SET_MODAL_ID = "bd:gratzmessage:create";

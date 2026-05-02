@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ApplicationCommandOptionType } from "discord.js";
-import { birthdayCommandDefinition } from "../src/commands/birthday-definition";
+import birthdayCommandDefinition from "../src/commands/birthday/definition";
 
 describe("birthdayCommandDefinition", () => {
   it("defines the delete subcommand with required user option", () => {

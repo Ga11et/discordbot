@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { ChatInputCommandInteraction } from "discord.js";
-import birthdayAccess from "../src/commands/birthday-access";
-import type { CommandAccessConfig } from "../src/commands/command-access";
+import birthdayAccess from "../src/commands/birthday/access";
+import type { CommandAccessConfig } from "../src/commands/shared/command-access";
 
 interface FakeInteractionOptions {
   channelId?: string | null;

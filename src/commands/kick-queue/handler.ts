@@ -8,10 +8,10 @@ import {
   KickQueueService,
   type PendingKickRecord,
   kickQueueService,
-} from "../members/kick-queue-service";
-import { KICK_QUEUE_SEND_CHECK_MESSAGE_JOB } from "../jobs/kick-queue-job-executor";
-import { minuteJobQueue } from "../jobs/minute-job-queue";
-import commandAccess from "./command-access";
+} from "../../members/kick-queue-service";
+import { KICK_QUEUE_SEND_CHECK_MESSAGE_JOB } from "../../jobs/handlers/kickqueue";
+import JMProvider from "../../jobs/JobManagerProvider";
+import commandAccess from "../shared/command-access";
 
 type EnqueueCheckMessageJob = (
   guildId: string,
@@ -41,7 +41,8 @@ async function enqueueCheckMessageJob(
   guildId: string,
   userId: string,
 ): Promise<void> {
-  await minuteJobQueue.enqueue(KICK_QUEUE_SEND_CHECK_MESSAGE_JOB, {
+  const JobManager = JMProvider.get();
+  await JobManager.enqueue(KICK_QUEUE_SEND_CHECK_MESSAGE_JOB, {
     guildId,
     userId,
   });
