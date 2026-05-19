@@ -11,7 +11,7 @@ import {
   TextInputBuilder,
   TextInputStyle,
 } from "discord.js";
-import { BirthdayCommandError } from "../../modules/birthdays/errors";
+import { AppError } from "../../utils/errors";
 import { createBirthdayCommandProcessor } from "../../modules/birthdays/processor";
 
 const processor = createBirthdayCommandProcessor();
@@ -100,7 +100,7 @@ async function handleCommand(
         return;
       }
 
-      throw new BirthdayCommandError(
+      throw new AppError(
         "INVALID_FORMAT",
         "Неизвестная подкоманда gratzmessage",
       );
@@ -165,9 +165,9 @@ async function handleCommand(
       return;
     }
 
-    throw new BirthdayCommandError("INVALID_FORMAT", "Неизвестная подкоманда");
+    throw new AppError("INVALID_FORMAT", "Неизвестная подкоманда");
   } catch (error) {
-    if (error instanceof BirthdayCommandError) {
+    if (error instanceof AppError) {
       await respond(interaction, error.userMessage, { ephemeral: true });
       return;
     }
@@ -198,7 +198,7 @@ async function handleModalSubmit(
     });
     return true;
   } catch (error) {
-    if (error instanceof BirthdayCommandError) {
+    if (error instanceof AppError) {
       await interaction.reply({
         content: error.userMessage,
         ephemeral: true,

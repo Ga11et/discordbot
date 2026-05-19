@@ -1,4 +1,4 @@
-export type BirthdayErrorCode =
+export type AppErrorCode =
   | "NOT_FOUND"
   | "INVALID_FORMAT"
   | "INVALID_DATE"
@@ -9,7 +9,7 @@ export type BirthdayErrorCode =
   | "GRATZ_MESSAGE_TEXT_EMPTY"
   | "INVALID_MESSAGE_ID";
 
-const DEFAULT_MESSAGES: Record<BirthdayErrorCode, string> = {
+const DEFAULT_MESSAGES: Record<AppErrorCode, string> = {
   NOT_FOUND: "Дата рождения не найдена. Установи её командой /bd set",
   INVALID_FORMAT: "Используй формат даты ДД.ММ.ГГГГ, например 16.01.1998",
   INVALID_DATE: "Такой даты не существует",
@@ -22,14 +22,14 @@ const DEFAULT_MESSAGES: Record<BirthdayErrorCode, string> = {
   INVALID_MESSAGE_ID: "messageid должен быть положительным числом",
 };
 
-export class BirthdayCommandError extends Error {
-  readonly code: BirthdayErrorCode;
+export class AppError extends Error {
+  readonly code: AppErrorCode;
   readonly userMessage: string;
 
-  constructor(code: BirthdayErrorCode, overrideMessage?: string) {
+  constructor(code: AppErrorCode, overrideMessage?: string) {
     const fallback = DEFAULT_MESSAGES[code];
     super(overrideMessage ?? fallback);
-    this.name = "BirthdayCommandError";
+    this.name = "AppError";
     this.code = code;
     this.userMessage = overrideMessage ?? fallback;
   }

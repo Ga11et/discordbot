@@ -3,7 +3,7 @@ import testDb from "./helpers/test-db";
 import { createBirthdayService } from "../src/modules/birthdays/service";
 import { createGratzService } from "../src/modules/birthdays/gratz-service";
 import { BirthdayCommandProcessor } from "../src/modules/birthdays/processor";
-import { BirthdayCommandError } from "../src/modules/birthdays/errors";
+import { AppError } from "../src/utils/errors";
 
 const ACTOR_ID = "111";
 const OTHER_USER_ID = "222";
@@ -124,7 +124,7 @@ describe("BirthdayCommandProcessor (e2e)", () => {
 
     await expect(() =>
       processor.setBirthday(ACTOR_ID, "99.99.1999"),
-    ).rejects.toBeInstanceOf(BirthdayCommandError);
+    ).rejects.toBeInstanceOf(AppError);
   });
 
   it.each(["16-01-1998", "32.01.2000", "15.13.2000", "abc", "29.02.1999"])(
@@ -134,7 +134,7 @@ describe("BirthdayCommandProcessor (e2e)", () => {
 
       await expect(() =>
         processor.setBirthday(ACTOR_ID, dateInput),
-      ).rejects.toBeInstanceOf(BirthdayCommandError);
+      ).rejects.toBeInstanceOf(AppError);
     },
   );
 
@@ -272,7 +272,7 @@ describe("BirthdayCommandProcessor (e2e)", () => {
     expect(deleteResult).toContain("удалено");
 
     await expect(() => processor.getGratzMessage(id!)).rejects.toBeInstanceOf(
-      BirthdayCommandError,
+      AppError,
     );
   });
 

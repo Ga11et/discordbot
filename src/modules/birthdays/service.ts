@@ -1,6 +1,6 @@
 import type { Knex } from "knex";
 import db from "../../db";
-import { fromIsoUtcDateString, toIsoUtcDateString } from "./date-utils";
+import DateUtils from "../../utils/date-utils";
 
 export interface BirthdayRecord {
   discordUserId: string;
@@ -9,6 +9,7 @@ export interface BirthdayRecord {
 
 const LIST_LIMIT = 100;
 const TABLE_NAME = "birthdays";
+const dateUtils = new DateUtils();
 
 interface BirthdayRow {
   discord_user_id: string;
@@ -20,7 +21,7 @@ interface BirthdayRow {
 function mapRowToRecord(row: BirthdayRow): BirthdayRecord {
   return {
     discordUserId: row.discord_user_id,
-    birthdayDate: fromIsoUtcDateString(row.birthday_date),
+    birthdayDate: dateUtils.fromIsoDateString(row.birthday_date),
   };
 }
 
@@ -31,7 +32,7 @@ export class BirthdayService {
     discordUserId: string,
     birthdayDate: Date,
   ): Promise<void> {
-    const isoDate = toIsoUtcDateString(birthdayDate);
+    const isoDate = dateUtils.toIsoDateString(birthdayDate);
     const now = this.client.fn.now();
 
     await this.client(TABLE_NAME)

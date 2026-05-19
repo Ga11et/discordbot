@@ -1,5 +1,5 @@
-import { BirthdayCommandError } from "./errors";
-import { birthdayDateUtils } from "./date-utils";
+import { AppError } from "../../utils/errors";
+import DateUtils from "../../utils/date-utils";
 import { BirthdayService, birthdayService } from "./service";
 import { GratzService, gratzService } from "./gratz-service";
 
@@ -13,6 +13,7 @@ export interface ListResult {
 }
 
 const GRATZ_LIST_PREVIEW_LIMIT = 200;
+const dateUtils = new DateUtils();
 
 function sanitizeMultilinePreview(text: string): string {
   return text.replace(/\s+/g, " ").trim();
@@ -28,7 +29,7 @@ function trimPreview(text: string): string {
 function parseMessageId(input: string): number {
   const parsed = Number(input);
   if (!Number.isInteger(parsed) || parsed <= 0) {
-    throw new BirthdayCommandError("INVALID_MESSAGE_ID");
+    throw new AppError("INVALID_MESSAGE_ID");
   }
 
   return parsed;
@@ -43,10 +44,10 @@ export class BirthdayCommandProcessor {
   async showOwnBirthday(userId: string): Promise<string> {
     const record = await this.service.getBirthday(userId);
     if (!record) {
-      throw new BirthdayCommandError("NOT_FOUND");
+      throw new AppError("NOT_FOUND");
     }
 
-    return `Твоя дата рождения: ${birthdayDateUtils.formatBirthdayDisplay(record.birthdayDate)}`;
+    return `Твоя дата рождения: ${dateUtils.formatDateDisplay(record.birthdayDate)}`;
   }
 
   async setBirthday(
@@ -54,7 +55,7 @@ export class BirthdayCommandProcessor {
     dateInput: string,
     targetUserId?: string,
   ): Promise<string> {
-    const parsed = birthdayDateUtils.parseBirthdayInput(dateInput);
+    const parsed = dateUtils.parseDateInput(dateInput);
     const userIdToUpdate = targetUserId ?? actorId;
 
     await this.service.upsertBirthday(userIdToUpdate, parsed);
@@ -69,7 +70,7 @@ export class BirthdayCommandProcessor {
   async deleteBirthday(targetUserId: string): Promise<string> {
     const removed = await this.service.deleteBirthday(targetUserId);
     if (!removed) {
-      throw new BirthdayCommandError(
+      throw new AppError(
         "NOT_FOUND",
         `Дата рождения пользователя <@${targetUserId}> не найдена`,
       );
@@ -83,9 +84,7 @@ export class BirthdayCommandProcessor {
     return {
       entries: records.map((record) => ({
         userId: record.discordUserId,
-        birthdayLabel: birthdayDateUtils.formatBirthdayDisplay(
-          record.birthdayDate,
-        ),
+        birthdayLabel: dateUtils.formatDateDisplay(record.birthdayDate),
       })),
     };
   }
@@ -99,7 +98,7 @@ export class BirthdayCommandProcessor {
       : await this.gratz.getRandomGratzMessage();
 
     if (!record) {
-      throw new BirthdayCommandError(
+      throw new AppError(
         messageIdInput ? "GRATZ_MESSAGE_ID_NOT_FOUND" : "GRATZ_MESSAGES_EMPTY",
       );
     }
@@ -109,7 +108,7 @@ export class BirthdayCommandProcessor {
 
   async createGratzMessage(text: string): Promise<string> {
     if (!text.trim()) {
-      throw new BirthdayCommandError("GRATZ_MESSAGE_TEXT_EMPTY");
+      throw new AppError("GRATZ_MESSAGE_TEXT_EMPTY");
     }
 
     const result = await this.gratz.createGratzMessage(text);
@@ -120,7 +119,7 @@ export class BirthdayCommandProcessor {
     const messageId = parseMessageId(messageIdInput);
     const record = await this.gratz.getGratzMessage(messageId);
     if (!record) {
-      throw new BirthdayCommandError("GRATZ_MESSAGE_ID_NOT_FOUND");
+      throw new AppError("GRATZ_MESSAGE_ID_NOT_FOUND");
     }
 
     return `id ${record.id}\n${record.text}`;
@@ -130,7 +129,7 @@ export class BirthdayCommandProcessor {
     const messageId = parseMessageId(messageIdInput);
     const removed = await this.gratz.deleteGratzMessage(messageId);
     if (!removed) {
-      throw new BirthdayCommandError("GRATZ_MESSAGE_ID_NOT_FOUND");
+      throw new AppError("GRATZ_MESSAGE_ID_NOT_FOUND");
     }
 
     return `Поздравление с id ${messageId} удалено`;
@@ -139,7 +138,7 @@ export class BirthdayCommandProcessor {
   async listGratzMessages(): Promise<string> {
     const records = await this.gratz.listGratzMessages();
     if (records.length === 0) {
-      throw new BirthdayCommandError("GRATZ_MESSAGES_EMPTY");
+      throw new AppError("GRATZ_MESSAGES_EMPTY");
     }
 
     return records
