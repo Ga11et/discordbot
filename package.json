@@ -6,10 +6,7 @@
     "start": "node dist/index.js",
     "dev": "ts-node src/index.ts",
     "test": "vitest run",
-    "pm2:start": "pm2 start ecosystem.config.cjs --env production",
-    "pm2:restart": "pm2 restart discordbot --update-env",
-    "pm2:logs": "pm2 logs discordbot",
-    "wsl:bootstrap": "bash scripts/wsl-pm2-bootstrap.sh"
+    "db:dump": "bash scripts/db-dump.sh"
   },
   "dependencies": {
     "@discordjs/rest": "^2.3.0",
