@@ -3,7 +3,6 @@ import type {
   ChatInputCommandInteraction,
   ModalSubmitInteraction,
 } from "discord.js";
-import * as accessMessages from "./access-messages";
 
 export type CommandRole = "GUEST" | "TESTER" | "ADMIN";
 
@@ -265,13 +264,13 @@ function getAccessDeniedMessage(
   accessResult: CommandInteractionAccessResult,
 ): string {
   const allowedChannels = formatAllowedChannels(config.allowedChannelIds);
-  const baseMessage = `Команды /${commandName}${accessMessages.ACCESS_ALLOWED_ONLY}${allowedChannels}`;
+  const baseMessage = `Команды /${commandName} доступны только ${allowedChannels}`;
 
   if (accessResult.commandId && isPublicCommandId(accessResult.commandId)) {
     return baseMessage;
   }
 
-  return `${baseMessage}${accessMessages.ACCESS_PRIVILEGED_USERS_SUFFIX}`;
+  return `${baseMessage} и пользователям с правами TESTER или ADMIN`;
 }
 
 function getChatInputCommandId(
