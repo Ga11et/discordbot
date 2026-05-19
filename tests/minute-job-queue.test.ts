@@ -11,6 +11,20 @@ import JobExecutor from "../src/jobs/JobExecutor";
 import JobManager from "../src/jobs/JobManager";
 import testDb from "./helpers/test-db";
 
+function createRunner(
+  manager: JobManager,
+  handlers: Record<
+    string,
+    (job: { type: string; payload: unknown }) => Promise<void>
+  >,
+  pollMs: number = 60_000,
+): JobExecutor {
+  return new JobExecutor(testDb.client(), {} as never, pollMs, {
+    manager,
+    handlers,
+  });
+}
+
 describe("JobManager + JobExecutor", () => {
   beforeAll(async () => {
     await testDb.init();
@@ -27,7 +41,7 @@ describe("JobManager + JobExecutor", () => {
   it("deletes a successful job from the database", async () => {
     const manager = new JobManager(testDb.client(), 60_000);
     const executed = vi.fn().mockResolvedValue(undefined);
-    const runner = new JobExecutor(manager, {
+    const runner = createRunner(manager, {
       "test.job": executed,
     });
 
@@ -40,7 +54,7 @@ describe("JobManager + JobExecutor", () => {
   it("keeps a failed job queued with incremented attempts and a later run_after", async () => {
     const manager = new JobManager(testDb.client(), 60_000);
     const executed = vi.fn().mockRejectedValue(new Error("boom"));
-    const runner = new JobExecutor(manager, {
+    const runner = createRunner(manager, {
       "test.job": executed,
     });
 
@@ -61,7 +75,7 @@ describe("JobManager + JobExecutor", () => {
   it("runs only one job per tick", async () => {
     const manager = new JobManager(testDb.client(), 60_000);
     const executed = vi.fn().mockResolvedValue(undefined);
-    const runner = new JobExecutor(manager, {
+    const runner = createRunner(manager, {
       "test.job": executed,
     });
 
@@ -92,7 +106,7 @@ describe("JobManager + JobExecutor", () => {
         }),
     );
 
-    const runner = new JobExecutor(manager, {
+    const runner = createRunner(manager, {
       "test.job": executor,
     });
 
@@ -116,7 +130,7 @@ describe("JobManager + JobExecutor", () => {
 
     const secondManager = new JobManager(testDb.client(), 60_000);
     const executed = vi.fn().mockResolvedValue(undefined);
-    const runner = new JobExecutor(secondManager, {
+    const runner = createRunner(secondManager, {
       "test.job": executed,
     });
 
@@ -144,10 +158,10 @@ describe("JobManager + JobExecutor", () => {
     );
     const secondExecutor = vi.fn().mockResolvedValue(undefined);
 
-    const firstRunner = new JobExecutor(firstManager, {
+    const firstRunner = createRunner(firstManager, {
       "test.job": firstExecutor,
     });
-    const secondRunner = new JobExecutor(secondManager, {
+    const secondRunner = createRunner(secondManager, {
       "test.job": secondExecutor,
     });
 
@@ -161,5 +175,66 @@ describe("JobManager + JobExecutor", () => {
     resolveExecution();
     await expect(firstRun).resolves.toBe(true);
     await expect(firstManager.list()).resolves.toEqual([]);
+  });
+
+  it("doubles poll interval on failure up to 2 hours", async () => {
+    const manager = new JobManager(testDb.client(), 0);
+    const executed = vi.fn().mockRejectedValue(new Error("boom"));
+    const runner = createRunner(
+      manager,
+      {
+        "test.job": executed,
+      },
+      60_000,
+    );
+
+    await manager.enqueue("test.job", { value: 1 });
+
+    for (let index = 0; index < 10; index += 1) {
+      await expect(runner.runNext()).resolves.toBe(true);
+    }
+
+    expect((runner as unknown as { currentPollMs: number }).currentPollMs).toBe(
+      7_200_000,
+    );
+  });
+
+  it("halves poll interval on success down to 1 minute", async () => {
+    const manager = new JobManager(testDb.client(), 60_000);
+    const executed = vi.fn().mockResolvedValue(undefined);
+    const runner = createRunner(
+      manager,
+      {
+        "test.job": executed,
+      },
+      3_840_000,
+    );
+
+    for (let index = 0; index < 10; index += 1) {
+      await manager.enqueue("test.job", { value: index });
+      await expect(runner.runNext()).resolves.toBe(true);
+    }
+
+    expect((runner as unknown as { currentPollMs: number }).currentPollMs).toBe(
+      60_000,
+    );
+  });
+
+  it("does not change poll interval when there is no due job", async () => {
+    const manager = new JobManager(testDb.client(), 60_000);
+    const executed = vi.fn().mockResolvedValue(undefined);
+    const runner = createRunner(
+      manager,
+      {
+        "test.job": executed,
+      },
+      120_000,
+    );
+
+    await expect(runner.runNext()).resolves.toBe(false);
+
+    expect((runner as unknown as { currentPollMs: number }).currentPollMs).toBe(
+      120_000,
+    );
   });
 });

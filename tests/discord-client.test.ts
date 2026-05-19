@@ -17,6 +17,6 @@ describe("discord client configuration", () => {
 
     expect(sameClient).toBe(client);
 
-    discordClient.destroy();
+    client.destroy();
   });
 });

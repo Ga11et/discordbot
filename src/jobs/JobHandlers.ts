@@ -3,7 +3,7 @@ import {
   KICK_QUEUE_SEND_CHECK_MESSAGE_JOB,
   createKickQueueHandler,
 } from "./handlers/kickqueue";
-import { JobHandler } from "./handlers/types";
+import { JobHandler } from "./types";
 
 type JobHandlerMap = Record<string, JobHandler>;
 

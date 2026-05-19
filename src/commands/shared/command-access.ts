@@ -47,7 +47,7 @@ export const TESTER_ALLOWED_COMMAND_IDS: readonly string[] = [
   "kickqueue.list",
 ];
 
-const PUBLIC_COMMAND_IDS = new Set(["bd.me", "bd.set", "bd.list"]);
+const PUBLIC_COMMAND_IDS = new Set(["bd.me", "bd.set"]);
 
 export function parseIds(rawIds: string | undefined): string[] {
   return [

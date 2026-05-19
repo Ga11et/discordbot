@@ -1,6 +1,6 @@
 import type { Client } from "discord.js";
 import kickQueueCheck from "../../commands/kick-queue/check";
-import { JobHandler, JobRecordLike } from "./types";
+import { JobHandler, JobRecordLike } from "../types";
 
 export const KICK_QUEUE_SEND_CHECK_MESSAGE_JOB = "kickqueue.send-check-message";
 

@@ -27,7 +27,7 @@ const commandIds = [
   "kickqueue.list",
 ] as const;
 
-const guestAllowedCommandIds = new Set(["bd.me", "bd.set", "bd.list"]);
+const guestAllowedCommandIds = new Set(["bd.me", "bd.set"]);
 const testerAllowedCommandIds = new Set([
   ...guestAllowedCommandIds,
   ...commandAccess.TESTER_ALLOWED_COMMAND_IDS,

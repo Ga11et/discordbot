@@ -5,36 +5,36 @@ import DiscordClient from "./discord-client";
 import Interaction from "./events/interaction-create";
 import { handleClientReady } from "./events/ready";
 import JobExecutor from "./jobs/JobExecutor";
-import JobHandlers from "./jobs/JobHandlers";
-import JMProvider from "./jobs/JobManagerProvider";
 
 export interface App {
   stop: () => Promise<void>;
 }
 
 export async function createApp(): Promise<App> {
+  // Core dependencies
   const discord = DiscordClient.client;
   const db = Database.client;
+  const config = loadConfig();
 
+  // Interaction routing
   const interaction = new Interaction();
-
   discord.once(Events.ClientReady, handleClientReady);
   discord.on(Events.InteractionCreate, interaction.handleInteraction);
 
-  const config = loadConfig();
-
+  // Command registration
   await Registrator.register(config);
-
-  const manager = JMProvider.init(db);
-  const handlers = new JobHandlers(discord).handlers();
-  const jobExecutor = new JobExecutor(manager, handlers);
-  jobExecutor.start();
-
   await discord.login(config.token);
+
+  // Background jobs lifecycle
+  const jobExecutor = new JobExecutor(db, discord);
+  jobExecutor.start();
 
   return {
     async stop(): Promise<void> {
+      // Background jobs shutdown
       jobExecutor.stop();
+
+      // Discord client shutdown
       discord.removeAllListeners();
       discord.destroy();
     },

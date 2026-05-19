@@ -57,14 +57,14 @@ yarn pm2:restart
 
 ### 5) Автозапуск при старте Windows
 
-В репозитории есть bootstrap-скрипт: `scripts/wsl-pm2-bootstrap.sh`.
+В репозитории есть launcher-скрипт: `scripts/wsl-pm2-bootstrap.sh`.
+
+Он **не** перезапускает сервисы и не билдит проект.
 
 Он делает:
 
-1. `docker compose up -d postgres`
-2. `yarn build`
-3. `pm2 start ecosystem.config.cjs --env production` (или `pm2 restart discordbot --update-env`)
-4. `pm2 save`
+1. Открывает отдельное окно терминала Windows.
+2. Запускает в нём `pm2 logs discordbot`.
 
 #### Настройка через Task Scheduler (Windows)
 
@@ -75,7 +75,9 @@ yarn pm2:restart
 - **Add arguments**:
   `-d Ubuntu --cd /var/www/discordbot --exec bash scripts/wsl-pm2-bootstrap.sh`
 
-После этого при старте Windows поднимется WSL, затем postgres-контейнер и процесс `discordbot` в PM2.
+После этого при старте Windows откроется окно с live-логами `discordbot`.
+
+> Важно: сам процесс `discordbot` в PM2 должен подниматься отдельно (через ваш текущий автозапуск WSL/PM2).
 
 ### 6) Файлы конфигурации
 
