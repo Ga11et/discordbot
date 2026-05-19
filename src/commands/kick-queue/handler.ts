@@ -4,11 +4,9 @@ import {
   type GuildMember,
   type InteractionReplyOptions,
 } from "discord.js";
-import {
-  KickQueueService,
-  type PendingKickRecord,
-  kickQueueService,
-} from "../../modules/members/kick-queue-service";
+import Database from "../../db";
+import MembersProcessor from "../../modules/members/processor";
+import KickQueueService from "../../modules/members/services/kick-queue-service";
 import { KICK_QUEUE_SEND_CHECK_MESSAGE_JOB } from "../../jobs/handlers/kickqueue";
 import JMProvider from "../../jobs/JobManagerProvider";
 import commandAccess from "../shared/command-access";
@@ -29,13 +27,8 @@ interface CheckAllResult {
   failedCount: number;
 }
 
-interface KickQueuedUsersResult {
-  kickedCount: number;
-  notFoundCount: number;
-  failedCount: number;
-}
-
 const EPHEMERAL_FLAGS = MessageFlags.Ephemeral;
+const kickQueueService = new KickQueueService(Database.client);
 
 async function enqueueCheckMessageJob(
   guildId: string,
@@ -118,100 +111,6 @@ function isExcludedMember(
   );
 }
 
-async function addPendingKickUserAndEnqueueJob(
-  guildId: string,
-  userId: string,
-  service: KickQueueService,
-  enqueueJob: EnqueueCheckMessageJob,
-): Promise<"added" | "already-pending" | "enqueue-failed"> {
-  const wasAdded = await service.addPendingKickUser(guildId, userId);
-  if (!wasAdded) {
-    return "already-pending";
-  }
-
-  try {
-    await enqueueJob(guildId, userId);
-    return "added";
-  } catch {
-    await service.removePendingKickUser(guildId, userId);
-    return "enqueue-failed";
-  }
-}
-
-async function queueEligibleMembers(
-  guildId: string,
-  members: GuildMember[],
-  service: KickQueueService,
-  enqueueJob: EnqueueCheckMessageJob,
-): Promise<CheckAllResult> {
-  let addedCount = 0;
-  let alreadyPendingCount = 0;
-  let failedCount = 0;
-
-  for (const member of members) {
-    const outcome = await addPendingKickUserAndEnqueueJob(
-      guildId,
-      member.user.id,
-      service,
-      enqueueJob,
-    );
-    if (outcome === "already-pending") {
-      alreadyPendingCount += 1;
-      continue;
-    }
-
-    if (outcome === "enqueue-failed") {
-      failedCount += 1;
-      continue;
-    }
-
-    addedCount += 1;
-  }
-
-  return {
-    addedCount,
-    alreadyPendingCount,
-    excludedCount: 0,
-    failedCount,
-  };
-}
-
-async function kickQueuedUsers(
-  interaction: ChatInputCommandInteraction,
-  guildId: string,
-  records: PendingKickRecord[],
-  service: KickQueueService,
-): Promise<KickQueuedUsersResult> {
-  let kickedCount = 0;
-  let notFoundCount = 0;
-  let failedCount = 0;
-
-  for (const record of records) {
-    const member = await fetchGuildMemberByUserId(
-      interaction,
-      record.discordUserId,
-    );
-    if (!member) {
-      notFoundCount += 1;
-      continue;
-    }
-
-    try {
-      await member.kick();
-      await service.removePendingKickUser(guildId, record.discordUserId);
-      kickedCount += 1;
-    } catch {
-      failedCount += 1;
-    }
-  }
-
-  return {
-    kickedCount,
-    notFoundCount,
-    failedCount,
-  };
-}
-
 async function handleCommand(
   interaction: ChatInputCommandInteraction,
   service: KickQueueService = kickQueueService,
@@ -227,14 +126,14 @@ async function handleCommand(
 
   const guildId = interaction.guildId;
   const subcommand = interaction.options.getSubcommand();
+  const processor = new MembersProcessor(service);
 
   if (subcommand === "check") {
     const user = interaction.options.getUser("user", true);
     await interaction.deferReply({ flags: EPHEMERAL_FLAGS });
-    const outcome = await addPendingKickUserAndEnqueueJob(
+    const outcome = await processor.addPendingKickUserAndEnqueueJob(
       guildId,
       user.id,
-      service,
       enqueueJob,
     );
 
@@ -266,13 +165,15 @@ async function handleCommand(
     const eligibleMembers = members.filter(
       (member) => !isExcludedMember(member, config),
     );
-    const result = await queueEligibleMembers(
+    const orchestrationResult = await processor.queueEligibleMembers(
       guildId,
-      eligibleMembers,
-      service,
+      eligibleMembers.map((member) => member.user.id),
       enqueueJob,
     );
-    result.excludedCount = members.length - eligibleMembers.length;
+    const result: CheckAllResult = {
+      ...orchestrationResult,
+      excludedCount: members.length - eligibleMembers.length,
+    };
 
     await interaction.editReply(
       `В очередь на кик добавлено ${result.addedCount} пользователей, уже в очереди ${result.alreadyPendingCount} пользователей, исключено ${result.excludedCount} пользователей, не удалось поставить в очередь отправки для ${result.failedCount} пользователей, сообщения поставлены в очередь отправки только для новых пользователей`,
@@ -282,7 +183,7 @@ async function handleCommand(
 
   if (subcommand === "add") {
     const user = interaction.options.getUser("user", true);
-    const wasAdded = await service.addPendingKickUser(guildId, user.id);
+    const wasAdded = await processor.addPendingKickUser(guildId, user.id);
     await respond(
       interaction,
       wasAdded
@@ -295,7 +196,7 @@ async function handleCommand(
 
   if (subcommand === "remove") {
     const user = interaction.options.getUser("user", true);
-    const removed = await service.removePendingKickUser(guildId, user.id);
+    const removed = await processor.removePendingKickUser(guildId, user.id);
 
     await respond(
       interaction,
@@ -308,7 +209,7 @@ async function handleCommand(
   }
 
   if (subcommand === "list") {
-    const records = await service.listPendingKickUsers(guildId);
+    const records = await processor.listPendingKickUsers(guildId);
     await respond(
       interaction,
       records.length === 0
@@ -322,17 +223,28 @@ async function handleCommand(
   if (subcommand === "kick") {
     await interaction.deferReply({ flags: EPHEMERAL_FLAGS });
 
-    const records = await service.listPendingKickUsers(guildId);
+    const records = await processor.listPendingKickUsers(guildId);
     if (records.length === 0) {
       await interaction.editReply("Очередь пользователей на кик пуста");
       return;
     }
 
-    const result = await kickQueuedUsers(
-      interaction,
+    const result = await processor.kickQueuedUsers(
       guildId,
       records,
-      service,
+      async (userId) => {
+        const member = await fetchGuildMemberByUserId(interaction, userId);
+        if (!member) {
+          return "not-found";
+        }
+
+        try {
+          await member.kick();
+          return "kicked";
+        } catch {
+          return "failed";
+        }
+      },
     );
     await interaction.editReply(
       `Кикнуто ${result.kickedCount} пользователей, не найдено на сервере ${result.notFoundCount} пользователей, не удалось кикнуть ${result.failedCount} пользователей, в очереди оставлено ${result.notFoundCount + result.failedCount} пользователей`,

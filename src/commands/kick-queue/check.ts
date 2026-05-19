@@ -7,15 +7,15 @@ import {
   type MessageCreateOptions,
   type User,
 } from "discord.js";
-import {
-  KickQueueService,
-  kickQueueService,
-} from "../../modules/members/kick-queue-service";
+import Database from "../../db";
+import MembersProcessor from "../../modules/members/processor";
+import KickQueueService from "../../modules/members/services/kick-queue-service";
 
 const KICK_QUEUE_BUTTON_PREFIX = "kickqueue";
 const STAY_ACTION = "stay";
 const IGNORE_ACTION = "ignore";
 const EPHEMERAL_FLAGS = MessageFlags.Ephemeral;
+const kickQueueService = new KickQueueService(Database.client);
 
 interface ParsedKickQueueButtonId {
   action: typeof STAY_ACTION | typeof IGNORE_ACTION;
@@ -132,6 +132,7 @@ async function handleButtonInteraction(
   interaction: ButtonInteraction,
   service: KickQueueService = kickQueueService,
 ): Promise<boolean> {
+  const processor = new MembersProcessor(service);
   const parsed = parseButtonCustomId(interaction.customId);
   if (!parsed) {
     return false;
@@ -157,7 +158,7 @@ async function handleButtonInteraction(
     return true;
   }
 
-  const removed = await service.removePendingKickUser(
+  const removed = await processor.removePendingKickUser(
     parsed.guildId,
     parsed.userId,
   );

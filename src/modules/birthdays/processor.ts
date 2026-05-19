@@ -1,7 +1,7 @@
 import { AppError } from "../../utils/errors";
 import DateUtils from "../../utils/date-utils";
-import { BirthdayService, birthdayService } from "./service";
-import { GratzService, gratzService } from "./gratz-service";
+import BirthdayService from "./services/birthday-service";
+import GratzService from "./services/gratz-service";
 
 export interface ListEntry {
   userId: string;
@@ -37,12 +37,12 @@ function parseMessageId(input: string): number {
 
 export class BirthdayCommandProcessor {
   constructor(
-    private readonly service: BirthdayService = birthdayService,
-    private readonly gratz: GratzService = gratzService,
+    private readonly birthdayService: BirthdayService,
+    private readonly gratzService: GratzService,
   ) {}
 
   async showOwnBirthday(userId: string): Promise<string> {
-    const record = await this.service.getBirthday(userId);
+    const record = await this.birthdayService.getBirthday(userId);
     if (!record) {
       throw new AppError("NOT_FOUND");
     }
@@ -58,7 +58,7 @@ export class BirthdayCommandProcessor {
     const parsed = dateUtils.parseDateInput(dateInput);
     const userIdToUpdate = targetUserId ?? actorId;
 
-    await this.service.upsertBirthday(userIdToUpdate, parsed);
+    await this.birthdayService.upsertBirthday(userIdToUpdate, parsed);
 
     if (userIdToUpdate === actorId) {
       return "Дата рождения сохранена!";
@@ -68,7 +68,7 @@ export class BirthdayCommandProcessor {
   }
 
   async deleteBirthday(targetUserId: string): Promise<string> {
-    const removed = await this.service.deleteBirthday(targetUserId);
+    const removed = await this.birthdayService.deleteBirthday(targetUserId);
     if (!removed) {
       throw new AppError(
         "NOT_FOUND",
@@ -80,7 +80,7 @@ export class BirthdayCommandProcessor {
   }
 
   async listBirthdays(): Promise<ListResult> {
-    const records = await this.service.listBirthdays();
+    const records = await this.birthdayService.listBirthdays();
     return {
       entries: records.map((record) => ({
         userId: record.discordUserId,
@@ -94,8 +94,8 @@ export class BirthdayCommandProcessor {
     messageIdInput?: string,
   ): Promise<string> {
     const record = messageIdInput
-      ? await this.gratz.getGratzMessage(parseMessageId(messageIdInput))
-      : await this.gratz.getRandomGratzMessage();
+      ? await this.gratzService.getGratzMessage(parseMessageId(messageIdInput))
+      : await this.gratzService.getRandomGratzMessage();
 
     if (!record) {
       throw new AppError(
@@ -111,13 +111,13 @@ export class BirthdayCommandProcessor {
       throw new AppError("GRATZ_MESSAGE_TEXT_EMPTY");
     }
 
-    const result = await this.gratz.createGratzMessage(text);
+    const result = await this.gratzService.createGratzMessage(text);
     return `Поздравление сохранено с id ${result.id}`;
   }
 
   async getGratzMessage(messageIdInput: string): Promise<string> {
     const messageId = parseMessageId(messageIdInput);
-    const record = await this.gratz.getGratzMessage(messageId);
+    const record = await this.gratzService.getGratzMessage(messageId);
     if (!record) {
       throw new AppError("GRATZ_MESSAGE_ID_NOT_FOUND");
     }
@@ -127,7 +127,7 @@ export class BirthdayCommandProcessor {
 
   async deleteGratzMessage(messageIdInput: string): Promise<string> {
     const messageId = parseMessageId(messageIdInput);
-    const removed = await this.gratz.deleteGratzMessage(messageId);
+    const removed = await this.gratzService.deleteGratzMessage(messageId);
     if (!removed) {
       throw new AppError("GRATZ_MESSAGE_ID_NOT_FOUND");
     }
@@ -136,7 +136,7 @@ export class BirthdayCommandProcessor {
   }
 
   async listGratzMessages(): Promise<string> {
-    const records = await this.gratz.listGratzMessages();
+    const records = await this.gratzService.listGratzMessages();
     if (records.length === 0) {
       throw new AppError("GRATZ_MESSAGES_EMPTY");
     }
@@ -148,11 +148,4 @@ export class BirthdayCommandProcessor {
       })
       .join("\n");
   }
-}
-
-export function createBirthdayCommandProcessor(
-  service: BirthdayService = birthdayService,
-  gratz: GratzService = gratzService,
-): BirthdayCommandProcessor {
-  return new BirthdayCommandProcessor(service, gratz);
 }

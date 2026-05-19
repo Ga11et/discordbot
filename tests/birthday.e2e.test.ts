@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, beforeEach, afterAll } from "vitest";
 import testDb from "./helpers/test-db";
-import { createBirthdayService } from "../src/modules/birthdays/service";
-import { createGratzService } from "../src/modules/birthdays/gratz-service";
+import BirthdayService from "../src/modules/birthdays/services/birthday-service";
+import GratzService from "../src/modules/birthdays/services/gratz-service";
 import { BirthdayCommandProcessor } from "../src/modules/birthdays/processor";
 import { AppError } from "../src/utils/errors";
 
@@ -10,9 +10,9 @@ const OTHER_USER_ID = "222";
 
 function createProcessor(): BirthdayCommandProcessor {
   const client = testDb.client();
-  const service = createBirthdayService(client);
-  const gratz = createGratzService(client);
-  return new BirthdayCommandProcessor(service, gratz);
+  const birthdayService = new BirthdayService(client);
+  const gratzService = new GratzService(client);
+  return new BirthdayCommandProcessor(birthdayService, gratzService);
 }
 
 describe("BirthdayCommandProcessor (e2e)", () => {

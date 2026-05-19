@@ -1,6 +1,5 @@
 import type { Knex } from "knex";
-import db from "../../db";
-import DateUtils from "../../utils/date-utils";
+import DateUtils from "../../../utils/date-utils";
 
 export interface BirthdayRecord {
   discordUserId: string;
@@ -25,7 +24,7 @@ function mapRowToRecord(row: BirthdayRow): BirthdayRecord {
   };
 }
 
-export class BirthdayService {
+export default class BirthdayService {
   constructor(private readonly client: Knex) {}
 
   async upsertBirthday(
@@ -95,11 +94,3 @@ export class BirthdayService {
     return records;
   }
 }
-
-export function createBirthdayService(
-  customClient: Knex = db.client,
-): BirthdayService {
-  return new BirthdayService(customClient);
-}
-
-export const birthdayService = createBirthdayService();

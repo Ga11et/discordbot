@@ -1,5 +1,4 @@
 import type { Knex } from "knex";
-import db from "../../db";
 
 const TABLE_NAME = "kick_queue";
 const LIST_LIMIT = 100;
@@ -28,7 +27,7 @@ function mapRowToRecord(row: KickQueueRow): PendingKickRecord {
   };
 }
 
-export class KickQueueService {
+export default class KickQueueService {
   constructor(private readonly client: Knex) {}
 
   async listPendingKickUsers(
@@ -92,11 +91,3 @@ export class KickQueueService {
     return affectedRows > 0;
   }
 }
-
-export function createKickQueueService(
-  customClient: Knex = db.client,
-): KickQueueService {
-  return new KickQueueService(customClient);
-}
-
-export const kickQueueService = createKickQueueService();

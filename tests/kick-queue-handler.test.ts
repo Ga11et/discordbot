@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { MessageFlags, type ChatInputCommandInteraction } from "discord.js";
 import kickQueueHandler from "../src/commands/kick-queue/handler";
-import type { KickQueueService } from "../src/modules/members/kick-queue-service";
+import type KickQueueService from "../src/modules/members/services/kick-queue-service";
 
 interface FakeGuildMemberOptions {
   kickError?: Error;
@@ -384,7 +384,10 @@ describe("handleKickQueueCommand", () => {
 
     await kickQueueHandler.handleCommand(interaction, service);
 
-    expect(service.listPendingKickUsers).toHaveBeenCalledWith("guild-1");
+    expect(service.listPendingKickUsers).toHaveBeenCalledWith(
+      "guild-1",
+      undefined,
+    );
     expect(reply).toHaveBeenCalledWith({
       content: "1. <@user-1>, 2. <@user-2>",
       flags: MessageFlags.Ephemeral,
@@ -403,7 +406,10 @@ describe("handleKickQueueCommand", () => {
     expect(deferReply).toHaveBeenCalledWith({
       flags: MessageFlags.Ephemeral,
     });
-    expect(service.listPendingKickUsers).toHaveBeenCalledWith("guild-1");
+    expect(service.listPendingKickUsers).toHaveBeenCalledWith(
+      "guild-1",
+      undefined,
+    );
     expect(editReply).toHaveBeenCalledWith(
       "Очередь пользователей на кик пуста",
     );
