@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { MessageFlags, type ButtonInteraction, type User } from "discord.js";
 import kickQueueCheck from "../src/commands/kick-queue/check";
-import type { KickQueueService } from "../src/members/kick-queue-service";
+import type { KickQueueService } from "../src/modules/members/kick-queue-service";
 
 function createServiceMock(): KickQueueService {
   return {

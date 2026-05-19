@@ -8,7 +8,7 @@ import {
   KickQueueService,
   type PendingKickRecord,
   kickQueueService,
-} from "../../members/kick-queue-service";
+} from "../../modules/members/kick-queue-service";
 import { KICK_QUEUE_SEND_CHECK_MESSAGE_JOB } from "../../jobs/handlers/kickqueue";
 import JMProvider from "../../jobs/JobManagerProvider";
 import commandAccess from "../shared/command-access";

@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { createKickQueueService } from "../src/members/kick-queue-service";
+import { createKickQueueService } from "../src/modules/members/kick-queue-service";
 import testDb from "./helpers/test-db";
 
 describe("KickQueueService (e2e)", () => {

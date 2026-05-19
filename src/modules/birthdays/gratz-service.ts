@@ -1,5 +1,5 @@
 import type { Knex } from "knex";
-import db from "../db";
+import db from "../../db";
 
 const TABLE_NAME = "birthday_gratz_messages";
 const LIST_LIMIT = 100;

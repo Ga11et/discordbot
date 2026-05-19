@@ -1,5 +1,5 @@
 import type { Knex } from "knex";
-import db from "../db";
+import db from "../../db";
 
 const TABLE_NAME = "kick_queue";
 const LIST_LIMIT = 100;

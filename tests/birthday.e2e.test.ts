@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeAll, beforeEach, afterAll } from "vitest";
 import testDb from "./helpers/test-db";
-import { createBirthdayService } from "../src/birthdays/service";
-import { createGratzService } from "../src/birthdays/gratz-service";
-import { BirthdayCommandProcessor } from "../src/birthdays/processor";
-import { BirthdayCommandError } from "../src/birthdays/errors";
+import { createBirthdayService } from "../src/modules/birthdays/service";
+import { createGratzService } from "../src/modules/birthdays/gratz-service";
+import { BirthdayCommandProcessor } from "../src/modules/birthdays/processor";
+import { BirthdayCommandError } from "../src/modules/birthdays/errors";
 
 const ACTOR_ID = "111";
 const OTHER_USER_ID = "222";

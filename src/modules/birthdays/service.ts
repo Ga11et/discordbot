@@ -1,5 +1,5 @@
 import type { Knex } from "knex";
-import db from "../db";
+import db from "../../db";
 import { fromIsoUtcDateString, toIsoUtcDateString } from "./date-utils";
 
 export interface BirthdayRecord {
