@@ -6,6 +6,7 @@ import {
 } from "discord.js";
 import Database from "../../db";
 import MembersProcessor from "../../modules/members/processor";
+import MembersResponse from "../../modules/members/response";
 import KickQueueService from "../../modules/members/services/kick-queue-service";
 import { KICK_QUEUE_SEND_CHECK_MESSAGE_JOB } from "../../jobs/handlers/kickqueue";
 import JMProvider from "../../jobs/JobManagerProvider";
@@ -29,6 +30,7 @@ interface CheckAllResult {
 
 const EPHEMERAL_FLAGS = MessageFlags.Ephemeral;
 const kickQueueService = new KickQueueService(Database.client);
+const membersResponse = new MembersResponse();
 
 async function enqueueCheckMessageJob(
   guildId: string,
@@ -55,12 +57,6 @@ async function respond(
   } else {
     await interaction.reply(payload);
   }
-}
-
-function formatPendingKickList(userIds: string[]): string {
-  return userIds
-    .map((userId, index) => `${index + 1}. <@${userId}>`)
-    .join(", ");
 }
 
 async function fetchGuildMemberByUserId(
@@ -137,22 +133,8 @@ async function handleCommand(
       enqueueJob,
     );
 
-    if (outcome === "already-pending") {
-      await interaction.editReply(
-        `Пользователь <@${user.id}> уже находится в очереди на кик, сообщение повторно не поставлено в очередь отправки`,
-      );
-      return;
-    }
-
-    if (outcome === "enqueue-failed") {
-      await interaction.editReply(
-        `Пользователь <@${user.id}> не добавлен в очередь на кик, сообщение не удалось поставить в очередь отправки`,
-      );
-      return;
-    }
-
     await interaction.editReply(
-      `Пользователь <@${user.id}> добавлен в очередь на кик, сообщение поставлено в очередь отправки`,
+      membersResponse.buildCheckResponse(user.id, outcome),
     );
     return;
   }
@@ -175,21 +157,20 @@ async function handleCommand(
       excludedCount: members.length - eligibleMembers.length,
     };
 
-    await interaction.editReply(
-      `В очередь на кик добавлено ${result.addedCount} пользователей, уже в очереди ${result.alreadyPendingCount} пользователей, исключено ${result.excludedCount} пользователей, не удалось поставить в очередь отправки для ${result.failedCount} пользователей, сообщения поставлены в очередь отправки только для новых пользователей`,
-    );
+    await interaction.editReply(membersResponse.buildCheckAllResponse(result));
     return;
   }
 
   if (subcommand === "add") {
     const user = interaction.options.getUser("user", true);
     const wasAdded = await processor.addPendingKickUser(guildId, user.id);
+
     await respond(
       interaction,
-      wasAdded
-        ? `Пользователь <@${user.id}> добавлен в очередь на кик`
-        : `Пользователь <@${user.id}> уже находится в очереди на кик`,
-      { flags: EPHEMERAL_FLAGS },
+      membersResponse.buildAddResponse(user.id, wasAdded),
+      {
+        flags: EPHEMERAL_FLAGS,
+      },
     );
     return;
   }
@@ -200,23 +181,19 @@ async function handleCommand(
 
     await respond(
       interaction,
-      removed
-        ? `Пользователь <@${user.id}> удалён из очереди на кик`
-        : `Пользователь <@${user.id}> не найден в очереди на кик`,
-      { flags: EPHEMERAL_FLAGS },
+      membersResponse.buildRemoveResponse(user.id, removed),
+      {
+        flags: EPHEMERAL_FLAGS,
+      },
     );
     return;
   }
 
   if (subcommand === "list") {
     const records = await processor.listPendingKickUsers(guildId);
-    await respond(
-      interaction,
-      records.length === 0
-        ? "Очередь пользователей на кик пуста"
-        : formatPendingKickList(records.map((record) => record.discordUserId)),
-      { flags: EPHEMERAL_FLAGS },
-    );
+    await respond(interaction, membersResponse.buildListResponse(records), {
+      flags: EPHEMERAL_FLAGS,
+    });
     return;
   }
 
@@ -225,7 +202,7 @@ async function handleCommand(
 
     const records = await processor.listPendingKickUsers(guildId);
     if (records.length === 0) {
-      await interaction.editReply("Очередь пользователей на кик пуста");
+      await interaction.editReply(membersResponse.buildListResponse(records));
       return;
     }
 
@@ -246,13 +223,11 @@ async function handleCommand(
         }
       },
     );
-    await interaction.editReply(
-      `Кикнуто ${result.kickedCount} пользователей, не найдено на сервере ${result.notFoundCount} пользователей, не удалось кикнуть ${result.failedCount} пользователей, в очереди оставлено ${result.notFoundCount + result.failedCount} пользователей`,
-    );
+    await interaction.editReply(membersResponse.buildKickResponse(result));
     return;
   }
 
-  await respond(interaction, "Неизвестная подкоманда kickqueue", {
+  await respond(interaction, membersResponse.buildUnknownSubcommandResponse(), {
     flags: EPHEMERAL_FLAGS,
   });
 }

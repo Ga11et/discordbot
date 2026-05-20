@@ -1,5 +1,6 @@
 import { AppError } from "../../utils/errors";
 import DateUtils from "../../utils/date-utils";
+import BirthdayResponse from "./response";
 import BirthdayService from "./services/birthday-service";
 import GratzService from "./services/gratz-service";
 
@@ -12,24 +13,16 @@ export interface ListResult {
   entries: ListEntry[];
 }
 
-const GRATZ_LIST_PREVIEW_LIMIT = 200;
 const dateUtils = new DateUtils();
-
-function sanitizeMultilinePreview(text: string): string {
-  return text.replace(/\s+/g, " ").trim();
-}
-
-function trimPreview(text: string): string {
-  if (text.length <= GRATZ_LIST_PREVIEW_LIMIT) {
-    return text;
-  }
-  return `${text.slice(0, GRATZ_LIST_PREVIEW_LIMIT)}...`;
-}
+const birthdayResponse = new BirthdayResponse();
 
 function parseMessageId(input: string): number {
   const parsed = Number(input);
   if (!Number.isInteger(parsed) || parsed <= 0) {
-    throw new AppError("INVALID_MESSAGE_ID");
+    throw new AppError(
+      "INVALID_INPUT",
+      birthdayResponse.buildMessageIdInvalidError(),
+    );
   }
 
   return parsed;
@@ -44,10 +37,13 @@ export class BirthdayCommandProcessor {
   async showOwnBirthday(userId: string): Promise<string> {
     const record = await this.birthdayService.getBirthday(userId);
     if (!record) {
-      throw new AppError("NOT_FOUND");
+      throw new AppError(
+        "NOT_FOUND",
+        birthdayResponse.buildBirthdayNotFoundResponse(),
+      );
     }
 
-    return `Твоя дата рождения: ${dateUtils.formatDateDisplay(record.birthdayDate)}`;
+    return birthdayResponse.buildOwnBirthdayResponse(record.birthdayDate);
   }
 
   async setBirthday(
@@ -55,16 +51,45 @@ export class BirthdayCommandProcessor {
     dateInput: string,
     targetUserId?: string,
   ): Promise<string> {
-    const parsed = dateUtils.parseDateInput(dateInput);
+    let parsed: Date;
+    try {
+      parsed = dateUtils.parseDateInput(dateInput);
+    } catch (error) {
+      if (error instanceof AppError) {
+        if (error.code === "INVALID_FORMAT") {
+          throw new AppError(
+            "INVALID_FORMAT",
+            birthdayResponse.buildDateInputFormatError(),
+          );
+        }
+
+        if (error.code === "INVALID_DATE") {
+          throw new AppError(
+            "INVALID_DATE",
+            birthdayResponse.buildDateInvalidError(),
+          );
+        }
+
+        if (error.code === "FUTURE_DATE") {
+          throw new AppError(
+            "FUTURE_DATE",
+            birthdayResponse.buildDateFromFutureError(),
+          );
+        }
+      }
+
+      throw error;
+    }
+
     const userIdToUpdate = targetUserId ?? actorId;
 
     await this.birthdayService.upsertBirthday(userIdToUpdate, parsed);
 
     if (userIdToUpdate === actorId) {
-      return "Дата рождения сохранена!";
+      return birthdayResponse.buildBirthdaySavedResponse();
     }
 
-    return `Дата рождения пользователя <@${userIdToUpdate}> обновлена!`;
+    return birthdayResponse.buildBirthdayUpdatedResponse(userIdToUpdate);
   }
 
   async deleteBirthday(targetUserId: string): Promise<string> {
@@ -72,11 +97,11 @@ export class BirthdayCommandProcessor {
     if (!removed) {
       throw new AppError(
         "NOT_FOUND",
-        `Дата рождения пользователя <@${targetUserId}> не найдена`,
+        birthdayResponse.buildBirthdayForUserNotFoundResponse(targetUserId),
       );
     }
 
-    return `Дата рождения пользователя <@${targetUserId}> удалена!`;
+    return birthdayResponse.buildBirthdayDeletedResponse(targetUserId);
   }
 
   async listBirthdays(): Promise<ListResult> {
@@ -99,7 +124,10 @@ export class BirthdayCommandProcessor {
 
     if (!record) {
       throw new AppError(
-        messageIdInput ? "GRATZ_MESSAGE_ID_NOT_FOUND" : "GRATZ_MESSAGES_EMPTY",
+        "NOT_FOUND",
+        messageIdInput
+          ? birthdayResponse.buildGratzMessageNotFoundError()
+          : birthdayResponse.buildGratzMessagesEmptyError(),
       );
     }
 
@@ -108,44 +136,51 @@ export class BirthdayCommandProcessor {
 
   async createGratzMessage(text: string): Promise<string> {
     if (!text.trim()) {
-      throw new AppError("GRATZ_MESSAGE_TEXT_EMPTY");
+      throw new AppError(
+        "EMPTY_VALUE",
+        birthdayResponse.buildGratzMessageTextEmptyError(),
+      );
     }
 
     const result = await this.gratzService.createGratzMessage(text);
-    return `Поздравление сохранено с id ${result.id}`;
+    return birthdayResponse.buildGratzMessageSavedResponse(result.id);
   }
 
   async getGratzMessage(messageIdInput: string): Promise<string> {
     const messageId = parseMessageId(messageIdInput);
     const record = await this.gratzService.getGratzMessage(messageId);
     if (!record) {
-      throw new AppError("GRATZ_MESSAGE_ID_NOT_FOUND");
+      throw new AppError(
+        "NOT_FOUND",
+        birthdayResponse.buildGratzMessageNotFoundError(),
+      );
     }
 
-    return `id ${record.id}\n${record.text}`;
+    return birthdayResponse.buildGratzMessageByIdResponse(record);
   }
 
   async deleteGratzMessage(messageIdInput: string): Promise<string> {
     const messageId = parseMessageId(messageIdInput);
     const removed = await this.gratzService.deleteGratzMessage(messageId);
     if (!removed) {
-      throw new AppError("GRATZ_MESSAGE_ID_NOT_FOUND");
+      throw new AppError(
+        "NOT_FOUND",
+        birthdayResponse.buildGratzMessageNotFoundError(),
+      );
     }
 
-    return `Поздравление с id ${messageId} удалено`;
+    return birthdayResponse.buildGratzMessageDeletedResponse(messageId);
   }
 
   async listGratzMessages(): Promise<string> {
     const records = await this.gratzService.listGratzMessages();
     if (records.length === 0) {
-      throw new AppError("GRATZ_MESSAGES_EMPTY");
+      throw new AppError(
+        "NOT_FOUND",
+        birthdayResponse.buildGratzMessagesEmptyError(),
+      );
     }
 
-    return records
-      .map((record) => {
-        const singleLine = sanitizeMultilinePreview(record.text);
-        return `${record.id}. ${trimPreview(singleLine)}`;
-      })
-      .join("\n");
+    return birthdayResponse.buildGratzMessagesListResponse(records);
   }
 }

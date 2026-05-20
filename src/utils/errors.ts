@@ -4,22 +4,19 @@ export type AppErrorCode =
   | "INVALID_DATE"
   | "FUTURE_DATE"
   | "INVALID_DB_VALUE"
-  | "GRATZ_MESSAGES_EMPTY"
-  | "GRATZ_MESSAGE_ID_NOT_FOUND"
-  | "GRATZ_MESSAGE_TEXT_EMPTY"
-  | "INVALID_MESSAGE_ID";
+  | "INVALID_INPUT"
+  | "EMPTY_VALUE"
+  | "INTERNAL_ERROR";
 
 const DEFAULT_MESSAGES: Record<AppErrorCode, string> = {
-  NOT_FOUND: "Дата рождения не найдена. Установи её командой /bd set",
-  INVALID_FORMAT: "Используй формат даты ДД.ММ.ГГГГ, например 16.01.1998",
-  INVALID_DATE: "Такой даты не существует",
-  FUTURE_DATE: "Дата рождения не может быть из будущего",
-  INVALID_DB_VALUE: "Некорректное значение даты в базе данных",
-  GRATZ_MESSAGES_EMPTY:
-    "Пока нет ни одного поздравления. Добавь через /bd gratzmessage create",
-  GRATZ_MESSAGE_ID_NOT_FOUND: "Поздравление с таким id не найдено",
-  GRATZ_MESSAGE_TEXT_EMPTY: "Текст поздравления не может быть пустым",
-  INVALID_MESSAGE_ID: "messageid должен быть положительным числом",
+  NOT_FOUND: "Ресурс не найден",
+  INVALID_FORMAT: "Некорректный формат данных",
+  INVALID_DATE: "Некорректная дата",
+  FUTURE_DATE: "Дата не может быть из будущего",
+  INVALID_DB_VALUE: "Некорректное значение в базе данных",
+  INVALID_INPUT: "Некорректный ввод",
+  EMPTY_VALUE: "Значение не может быть пустым",
+  INTERNAL_ERROR: "Внутренняя ошибка",
 };
 
 export class AppError extends Error {

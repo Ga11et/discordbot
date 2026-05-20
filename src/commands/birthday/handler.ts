@@ -10,6 +10,7 @@ import {
   type ModalSubmitInteraction,
 } from "discord.js";
 import Database from "../../db";
+import BirthdayResponse from "../../modules/birthdays/response";
 import BirthdayService from "../../modules/birthdays/services/birthday-service";
 import GratzService from "../../modules/birthdays/services/gratz-service";
 import { AppError } from "../../utils/errors";
@@ -18,6 +19,7 @@ import { BirthdayCommandProcessor } from "../../modules/birthdays/processor";
 const birthdayService = new BirthdayService(Database.client);
 const gratzService = new GratzService(Database.client);
 const processor = new BirthdayCommandProcessor(birthdayService, gratzService);
+const birthdayResponse = new BirthdayResponse();
 export const GRATZ_MESSAGE_SET_MODAL_ID = "bd:gratzmessage:create";
 const GRATZ_MESSAGE_SET_MODAL_INPUT_ID = "gratzmessage-text";
 
@@ -105,7 +107,7 @@ async function handleCommand(
 
       throw new AppError(
         "INVALID_FORMAT",
-        "Неизвестная подкоманда gratzmessage",
+        birthdayResponse.buildUnknownGratzSubcommandError(),
       );
     }
 
@@ -138,18 +140,10 @@ async function handleCommand(
 
     if (subcommand === "list") {
       const list = await processor.listBirthdays();
-      if (list.entries.length === 0) {
-        await respond(interaction, "Пока никто не добавил дату рождения", {
-          ephemeral: false,
-        });
-        return;
-      }
-
-      const lines = list.entries.map(
-        (entry, index) =>
-          `${index + 1}. <@${entry.userId}> — ${entry.birthdayLabel}`,
+      await respond(
+        interaction,
+        birthdayResponse.buildBirthdayListResponse(list.entries),
       );
-      await respond(interaction, lines.join("\n"));
       return;
     }
 
@@ -168,7 +162,10 @@ async function handleCommand(
       return;
     }
 
-    throw new AppError("INVALID_FORMAT", "Неизвестная подкоманда");
+    throw new AppError(
+      "INVALID_FORMAT",
+      birthdayResponse.buildUnknownSubcommandError(),
+    );
   } catch (error) {
     if (error instanceof AppError) {
       await respond(interaction, error.userMessage, { ephemeral: true });
@@ -176,7 +173,7 @@ async function handleCommand(
     }
 
     console.error("Ошибка при обработке /bd", error);
-    await respond(interaction, "Что-то пошло не так. Попробуй позже", {
+    await respond(interaction, birthdayResponse.buildUnexpectedError(), {
       ephemeral: true,
     });
   }
@@ -211,7 +208,7 @@ async function handleModalSubmit(
 
     console.error("Ошибка при обработке modal /bd gratzmessage set", error);
     await interaction.reply({
-      content: "Что-то пошло не так. Попробуй позже",
+      content: birthdayResponse.buildUnexpectedError(),
       ephemeral: true,
     });
     return true;
