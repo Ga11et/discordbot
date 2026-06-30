@@ -4,6 +4,7 @@ import {
   type RESTPostAPIChatInputApplicationCommandsJSONBody,
 } from "discord.js";
 import bdDef from "./birthday/definition";
+import birthDef from "./birth/definition";
 import kqDef from "./kick-queue/definition";
 
 type CommandDefinition = RESTPostAPIChatInputApplicationCommandsJSONBody;
@@ -50,6 +51,6 @@ class CommandRegister {
   }
 }
 
-const commandRegister = new CommandRegister().addMany([bdDef, kqDef]);
+const commandRegister = new CommandRegister().addMany([bdDef, birthDef, kqDef]);
 
 export default commandRegister;

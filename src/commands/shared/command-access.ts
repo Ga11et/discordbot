@@ -43,10 +43,16 @@ export type SupportedAccessInteraction =
 export const TESTER_ALLOWED_COMMAND_IDS: readonly string[] = [
   "bd.gratzmessage.get",
   "bd.gratzmessage.list",
+  "birth.get",
   "kickqueue.list",
 ];
 
-const PUBLIC_COMMAND_IDS = new Set(["bd.me", "bd.set"]);
+export const PUBLIC_COMMAND_IDS = new Set([
+  "bd.me",
+  "bd.set",
+  "birth.me",
+  "birth.set",
+]);
 
 export function parseIds(rawIds: string | undefined): string[] {
   return [
@@ -332,6 +338,7 @@ const commandAccess = {
   parseIds,
   resolveRoles,
   TESTER_ALLOWED_COMMAND_IDS,
+  PUBLIC_COMMAND_IDS,
 };
 
 export default commandAccess;

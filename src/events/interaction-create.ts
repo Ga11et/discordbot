@@ -1,6 +1,8 @@
 import type { Interaction as DiscordInteraction } from "discord.js";
 import birthdayAccess from "../commands/birthday/access";
 import birthdayHandler from "../commands/birthday/handler";
+import birthAccess from "../commands/birth/access";
+import birthHandler from "../commands/birth/handler";
 import type { CommandAccessConfig } from "../commands/shared/command-access";
 import kickQueueAccess from "../commands/kick-queue/access";
 import kickQueueCheck from "../commands/kick-queue/check";
@@ -8,10 +10,12 @@ import kickQueueHandler from "../commands/kick-queue/handler";
 
 class Interaction {
   private readonly birthdayConfig: CommandAccessConfig;
+  private readonly birthConfig: CommandAccessConfig;
   private readonly kickQueueConfig: CommandAccessConfig;
 
   constructor() {
     this.birthdayConfig = birthdayAccess.loadConfig();
+    this.birthConfig = birthAccess.loadConfig();
     this.kickQueueConfig = kickQueueAccess.loadConfig();
   }
 
@@ -75,6 +79,19 @@ class Interaction {
       }
 
       await birthdayHandler.handleCommand(interaction);
+      return;
+    }
+
+    if (interaction.commandName === "birth") {
+      const hasAccess = await birthAccess.ensureAccess(
+        interaction,
+        this.birthConfig,
+      );
+      if (!hasAccess) {
+        return;
+      }
+
+      await birthHandler.handleCommand(interaction);
     }
   }
 

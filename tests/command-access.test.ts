@@ -20,6 +20,11 @@ const commandIds = [
   "bd.gratzmessage.get",
   "bd.gratzmessage.delete",
   "bd.gratzmessage.list",
+  "birth.me",
+  "birth.get",
+  "birth.set",
+  "birth.delete",
+  "birth.list",
   "kickqueue.check",
   "kickqueue.checkall",
   "kickqueue.add",
@@ -27,7 +32,7 @@ const commandIds = [
   "kickqueue.list",
 ] as const;
 
-const guestAllowedCommandIds = new Set(["bd.me", "bd.set"]);
+const guestAllowedCommandIds = commandAccess.PUBLIC_COMMAND_IDS;
 const testerAllowedCommandIds = new Set([
   ...guestAllowedCommandIds,
   ...commandAccess.TESTER_ALLOWED_COMMAND_IDS,

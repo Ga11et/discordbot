@@ -52,7 +52,35 @@ export default class DateUtils {
     return date;
   }
 
+  public parseDayMonth(raw: string): Date {
+    const trimmed = raw.trim();
+    const match = /^([0-3]\d)\.([0-1]\d)$/.exec(trimmed);
+    if (!match) {
+      throw new AppError("INVALID_FORMAT");
+    }
+
+    const day = Number(match[1]);
+    const month = Number(match[2]);
+    const year = 2000;
+
+    const date = new Date(Date.UTC(year, month - 1, day));
+    if (
+      date.getUTCMonth() !== month - 1 ||
+      date.getUTCDate() !== day
+    ) {
+      throw new AppError("INVALID_DATE");
+    }
+
+    return date;
+  }
+
+  public formatDayMonth(date: Date): string {
+    return `${this.formatNumber(date.getUTCDate())}.${this.formatNumber(date.getUTCMonth() + 1)}`;
+  }
+
   private formatNumber(value: number): string {
     return value.toString().padStart(2, "0");
   }
 }
+
+export const dateUtils = new DateUtils();
