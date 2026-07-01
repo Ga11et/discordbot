@@ -3,10 +3,11 @@ import {
   BirthService,
   type SetBirthdayResult,
   type BirthdayListEntry,
+  type PendingBirthRecord,
 } from "./service";
 import type { BirthdayRecord } from "./db";
 
-export type { SetBirthdayResult, BirthdayListEntry };
+export type { SetBirthdayResult, BirthdayListEntry, PendingBirthRecord };
 
 export class BirthController {
   private readonly service: BirthService;
@@ -39,5 +40,17 @@ export class BirthController {
 
   async listBirthdays(): Promise<BirthdayListEntry[]> {
     return this.service.listBirthdays();
+  }
+
+  async addToCheckQueue(guildId: string, userId: string): Promise<boolean> {
+    return this.service.addToCheckQueue(guildId, userId);
+  }
+
+  async removeFromCheckQueue(guildId: string, userId: string): Promise<boolean> {
+    return this.service.removeFromCheckQueue(guildId, userId);
+  }
+
+  async listCheckQueue(guildId: string): Promise<PendingBirthRecord[]> {
+    return this.service.listCheckQueue(guildId);
   }
 }

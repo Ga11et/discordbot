@@ -2,6 +2,9 @@ import type { Knex } from "knex";
 import { AppError } from "../../utils/errors";
 import { dateUtils } from "../../utils/date-utils";
 import { BirthDb, type BirthdayRecord } from "./db";
+import { BirthCheckQueueDb, type PendingBirthRecord } from "./check-queue-db";
+
+export type { PendingBirthRecord };
 
 export type SetBirthdayResult =
   | { type: "self" }
@@ -14,14 +17,16 @@ export interface BirthdayListEntry {
 }
 
 export class BirthService {
-  private readonly db: BirthDb;
+  private readonly birthDb: BirthDb;
+  private readonly checkQueueDb: BirthCheckQueueDb;
 
   constructor(client: Knex) {
-    this.db = new BirthDb(client);
+    this.birthDb = new BirthDb(client);
+    this.checkQueueDb = new BirthCheckQueueDb(client);
   }
 
   async getOwnBirthday(userId: string): Promise<BirthdayRecord> {
-    const record = await this.db.getBirthday(userId);
+    const record = await this.birthDb.getBirthday(userId);
     if (!record) {
       throw new AppError("NOT_FOUND");
     }
@@ -30,7 +35,7 @@ export class BirthService {
   }
 
   async getBirthday(targetUserId: string): Promise<BirthdayRecord | null> {
-    return this.db.getBirthday(targetUserId);
+    return this.birthDb.getBirthday(targetUserId);
   }
 
   async setBirthday(
@@ -49,7 +54,7 @@ export class BirthService {
     }
 
     const userIdToUpdate = targetUserId ?? actorId;
-    await this.db.upsertBirthday(userIdToUpdate, parsed);
+    await this.birthDb.upsertBirthday(userIdToUpdate, parsed);
 
     if (userIdToUpdate === actorId) {
       return { type: "self" };
@@ -59,7 +64,7 @@ export class BirthService {
   }
 
   async deleteBirthday(targetUserId: string): Promise<{ targetUserId: string }> {
-    const removed = await this.db.deleteBirthday(targetUserId);
+    const removed = await this.birthDb.deleteBirthday(targetUserId);
     if (!removed) {
       throw new AppError("NOT_FOUND");
     }
@@ -67,8 +72,20 @@ export class BirthService {
     return { targetUserId };
   }
 
+  async addToCheckQueue(guildId: string, userId: string): Promise<boolean> {
+    return this.checkQueueDb.addPending(guildId, userId);
+  }
+
+  async removeFromCheckQueue(guildId: string, userId: string): Promise<boolean> {
+    return this.checkQueueDb.removePending(guildId, userId);
+  }
+
+  async listCheckQueue(guildId: string): Promise<PendingBirthRecord[]> {
+    return this.checkQueueDb.listPending(guildId);
+  }
+
   async listBirthdays(): Promise<BirthdayListEntry[]> {
-    const records = await this.db.listBirthdays();
+    const records = await this.birthDb.listBirthdays();
 
     return records.map((record: BirthdayRecord) => ({
       userId: record.discordUserId,

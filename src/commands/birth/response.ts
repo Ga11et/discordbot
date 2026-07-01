@@ -1,5 +1,12 @@
 import { dateUtils } from "../../utils/date-utils";
-import type { BirthdayListEntry, SetBirthdayResult } from "../../modules/birth/controller";
+import type { BirthdayListEntry, SetBirthdayResult, PendingBirthRecord } from "../../modules/birth/controller";
+
+export interface CheckAllResult {
+  added: number;
+  alreadyPending: number;
+  alreadySet: number;
+  failed: number;
+}
 
 export class BirthResponse {
   ownBirthday(birthdayDate: Date): string {
@@ -53,6 +60,56 @@ export class BirthResponse {
 
   unexpectedError(): string {
     return "Что-то пошло не так. Попробуй позже";
+  }
+
+  checkEnqueued(userId: string): string {
+    return `Пользователь <@${userId}> добавлен в очередь на запрос даты рождения`;
+  }
+
+  checkAlreadySet(userId: string): string {
+    return `У <@${userId}> уже установлена дата рождения`;
+  }
+
+  checkAlreadyPending(userId: string): string {
+    return `Пользователь <@${userId}> уже находится в очереди`;
+  }
+
+  checkEnqueueFailed(userId: string): string {
+    return `Не удалось добавить <@${userId}> в очередь`;
+  }
+
+  checkAllResult(result: CheckAllResult): string {
+    const lines: string[] = [];
+
+    if (result.added > 0) {
+      lines.push(`✅ Добавлено в очередь: **${result.added}**`);
+    }
+    if (result.alreadyPending > 0) {
+      lines.push(`⏳ Уже в очереди: **${result.alreadyPending}**`);
+    }
+    if (result.alreadySet > 0) {
+      lines.push(`📅 Дата уже установлена: **${result.alreadySet}**`);
+    }
+    if (result.failed > 0) {
+      lines.push(`❌ Ошибки добавления: **${result.failed}**`);
+    }
+
+    if (lines.length === 0) {
+      return "Нет участников для добавления в очередь";
+    }
+
+    return lines.join("\n");
+  }
+
+  checkQueue(records: PendingBirthRecord[]): string {
+    if (records.length === 0) {
+      return "Очередь на запрос даты рождения пуста";
+    }
+
+    return (
+      `Очередь на запрос даты рождения (${records.length}):\n` +
+      records.map((r, i) => `${i + 1}. <@${r.discordUserId}>`).join("\n")
+    );
   }
 }
 

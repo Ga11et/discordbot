@@ -6,6 +6,7 @@ import birthHandler from "../commands/birth/handler";
 import type { CommandAccessConfig } from "../commands/shared/command-access";
 import kickQueueAccess from "../commands/kick-queue/access";
 import kickQueueCheck from "../commands/kick-queue/check";
+import birthCheck, { BIRTH_BUTTON_PREFIX } from "../commands/birth/check";
 import kickQueueHandler from "../commands/kick-queue/handler";
 
 class Interaction {
@@ -39,11 +40,29 @@ class Interaction {
     return birthdayHandler.handleModalSubmit(interaction);
   }
 
+  private async handleSelectInteraction(
+    interaction: DiscordInteraction,
+  ): Promise<boolean> {
+    if (!interaction.isStringSelectMenu()) {
+      return false;
+    }
+
+    if (interaction.customId.startsWith(`${BIRTH_BUTTON_PREFIX}:`)) {
+      return birthCheck.handleSelectInteraction(interaction);
+    }
+
+    return false;
+  }
+
   private async handleButtonInteraction(
     interaction: DiscordInteraction,
   ): Promise<boolean> {
     if (!interaction.isButton()) {
       return false;
+    }
+
+    if (interaction.customId.startsWith(`${BIRTH_BUTTON_PREFIX}:`)) {
+      return birthCheck.handleButtonInteraction(interaction);
     }
 
     return kickQueueCheck.handleButtonInteraction(interaction);
@@ -100,6 +119,11 @@ class Interaction {
   ): Promise<void> => {
     const modalHandled = await this.handleModalInteraction(interaction);
     if (modalHandled) {
+      return;
+    }
+
+    const selectHandled = await this.handleSelectInteraction(interaction);
+    if (selectHandled) {
       return;
     }
 

@@ -62,6 +62,10 @@ class TestDbHelper {
     await this.client()("kick_queue").truncate();
   }
 
+  public async resetBirthCheckQ(): Promise<void> {
+    await this.client()("birth_check_queue").truncate();
+  }
+
   public async resetJobQ(): Promise<void> {
     await this.client()("job_queue").truncate();
   }

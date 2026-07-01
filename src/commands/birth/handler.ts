@@ -1,13 +1,36 @@
 import {
+  MessageFlags,
   type ChatInputCommandInteraction,
+  type GuildMember,
   type InteractionReplyOptions,
 } from "discord.js";
 import Database from "../../db";
 import { AppError } from "../../utils/errors";
 import { BirthController } from "../../modules/birth/controller";
-import { birthResponse } from "./response";
+import { BIRTH_SEND_CHECK_MESSAGE_JOB } from "../../jobs/handlers/birth";
+import JMProvider from "../../jobs/JobManagerProvider";
+import { birthResponse, type CheckAllResult } from "./response";
 
+const EPHEMERAL_FLAGS = MessageFlags.Ephemeral;
 const controller = new BirthController(Database.client);
+
+async function enqueueCheckMessageJob(
+  guildId: string,
+  userId: string,
+): Promise<void> {
+  const jobManager = JMProvider.get();
+  await jobManager.enqueue(BIRTH_SEND_CHECK_MESSAGE_JOB, { guildId, userId });
+}
+
+async function fetchGuildMembers(
+  interaction: ChatInputCommandInteraction,
+): Promise<GuildMember[]> {
+  if (!interaction.guild) {
+    return [];
+  }
+  const members = await interaction.guild.members.fetch();
+  return [...members.values()];
+}
 
 async function respond(
   interaction: ChatInputCommandInteraction,
@@ -34,7 +57,7 @@ function resolveErrorMessage(error: AppError, context: string): string {
   return birthResponse.unexpectedError();
 }
 
-async function handleCommand(
+async function handleBirthdaySubcommand(
   interaction: ChatInputCommandInteraction,
 ): Promise<void> {
   const subcommand = interaction.options.getSubcommand();
@@ -136,6 +159,119 @@ async function handleCommand(
   }
 
   await respond(interaction, birthResponse.unexpectedError(), { ephemeral: true });
+}
+
+async function handleCheckSubcommand(
+  interaction: ChatInputCommandInteraction,
+): Promise<void> {
+  if (!interaction.inGuild() || !interaction.guildId) {
+    await respond(interaction, "Команда доступна только на сервере", { flags: EPHEMERAL_FLAGS });
+    return;
+  }
+
+  const guildId = interaction.guildId;
+  const targetUser = interaction.options.getUser("user", true);
+  const userId = targetUser.id;
+
+  await interaction.deferReply({ flags: EPHEMERAL_FLAGS });
+
+  const existing = await controller.getBirthday(userId);
+  if (existing) {
+    await interaction.editReply(birthResponse.checkAlreadySet(userId));
+    return;
+  }
+
+  const added = await controller.addToCheckQueue(guildId, userId);
+  if (!added) {
+    await interaction.editReply(birthResponse.checkAlreadyPending(userId));
+    return;
+  }
+
+  try {
+    await enqueueCheckMessageJob(guildId, userId);
+    await interaction.editReply(birthResponse.checkEnqueued(userId));
+  } catch {
+    await controller.removeFromCheckQueue(guildId, userId);
+    await interaction.editReply(birthResponse.checkEnqueueFailed(userId));
+  }
+}
+
+async function handleCheckAllSubcommand(
+  interaction: ChatInputCommandInteraction,
+): Promise<void> {
+  if (!interaction.inGuild() || !interaction.guildId) {
+    await respond(interaction, "Команда доступна только на сервере", { flags: EPHEMERAL_FLAGS });
+    return;
+  }
+
+  const guildId = interaction.guildId;
+  await interaction.deferReply({ flags: EPHEMERAL_FLAGS });
+
+  const members = await fetchGuildMembers(interaction);
+  const eligibleMembers = members.filter((m) => !m.user.bot);
+
+  const result: CheckAllResult = { added: 0, alreadyPending: 0, alreadySet: 0, failed: 0 };
+
+  for (const member of eligibleMembers) {
+    const userId = member.user.id;
+
+    const existing = await controller.getBirthday(userId);
+    if (existing) {
+      result.alreadySet += 1;
+      continue;
+    }
+
+    const added = await controller.addToCheckQueue(guildId, userId);
+    if (!added) {
+      result.alreadyPending += 1;
+      continue;
+    }
+
+    try {
+      await enqueueCheckMessageJob(guildId, userId);
+      result.added += 1;
+    } catch {
+      await controller.removeFromCheckQueue(guildId, userId);
+      result.failed += 1;
+    }
+  }
+
+  await interaction.editReply(birthResponse.checkAllResult(result));
+}
+
+async function handleQueueSubcommand(
+  interaction: ChatInputCommandInteraction,
+): Promise<void> {
+  if (!interaction.inGuild() || !interaction.guildId) {
+    await respond(interaction, "Команда доступна только на сервере", { flags: EPHEMERAL_FLAGS });
+    return;
+  }
+
+  const records = await controller.listCheckQueue(interaction.guildId);
+  await respond(interaction, birthResponse.checkQueue(records), { flags: EPHEMERAL_FLAGS });
+}
+
+async function handleCommand(
+  interaction: ChatInputCommandInteraction,
+): Promise<void> {
+  const subcommand = interaction.options.getSubcommand();
+
+  if (subcommand === "check") {
+    await handleCheckSubcommand(interaction);
+    return;
+  }
+
+  if (subcommand === "checkall") {
+    await handleCheckAllSubcommand(interaction);
+    return;
+  }
+
+  if (subcommand === "queue") {
+    await handleQueueSubcommand(interaction);
+    return;
+  }
+
+  await handleBirthdaySubcommand(interaction);
 }
 
 const birthHandler = { handleCommand };

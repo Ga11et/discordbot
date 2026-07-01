@@ -55,6 +55,29 @@ const birthBuilder = new SlashCommandBuilder()
     sub
       .setName("list")
       .setDescription("Показать список сохранённых дат рождения"),
+  )
+  .addSubcommand((sub) =>
+    sub
+      .setName("check")
+      .setDescription("Отправить пользователю DM с запросом даты рождения")
+      .addUserOption((option) =>
+        option
+          .setName("user")
+          .setDescription("Пользователь, которому отправить запрос")
+          .setRequired(true),
+      ),
+  )
+  .addSubcommand((sub) =>
+    sub
+      .setName("checkall")
+      .setDescription(
+        "Отправить DM с запросом даты рождения всем участникам без неё",
+      ),
+  )
+  .addSubcommand((sub) =>
+    sub
+      .setName("queue")
+      .setDescription("Показать очередь на отправку запроса даты рождения"),
   );
 
 export default birthBuilder.toJSON() satisfies RESTPostAPIChatInputApplicationCommandsJSONBody;
