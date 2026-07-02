@@ -78,6 +78,17 @@ const birthBuilder = new SlashCommandBuilder()
     sub
       .setName("queue")
       .setDescription("Показать очередь на отправку запроса даты рождения"),
+  )
+  .addSubcommand((sub) =>
+    sub
+      .setName("dequeue")
+      .setDescription("Удалить пользователя из очереди на запрос даты рождения")
+      .addUserOption((option) =>
+        option
+          .setName("user")
+          .setDescription("Пользователь, которого убрать из очереди")
+          .setRequired(true),
+      ),
   );
 
 export default birthBuilder.toJSON() satisfies RESTPostAPIChatInputApplicationCommandsJSONBody;

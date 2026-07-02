@@ -10,13 +10,19 @@ interface JobPayload {
 }
 
 function checkMessagePayload(payload: unknown): payload is JobPayload {
+  if (
+    typeof payload !== "object" ||
+    payload === null ||
+    !("guildId" in payload) ||
+    !("userId" in payload)
+  ) {
+    return false;
+  }
+
+  const { guildId, userId } = payload as JobPayload;
   return (
-    typeof payload === "object" &&
-    payload !== null &&
-    "guildId" in payload &&
-    "userId" in payload &&
-    typeof payload.guildId === "string" &&
-    typeof payload.userId === "string"
+    (typeof guildId === "string" || typeof guildId === "number") &&
+    (typeof userId === "string" || typeof userId === "number")
   );
 }
 
@@ -26,7 +32,10 @@ export function createKickQueueHandler(client: Client): JobHandler {
       throw new Error("Invalid kickqueue send-check-message job payload");
     }
 
-    const user = await client.users.fetch(job.payload.userId);
-    await kickQueueCheck.sendCheckMessage(user, job.payload.guildId);
+    const userId = String(job.payload.userId);
+    const guildId = String(job.payload.guildId);
+
+    const user = await client.users.fetch(userId);
+    await kickQueueCheck.sendCheckMessage(user, guildId);
   };
 }

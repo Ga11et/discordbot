@@ -101,6 +101,14 @@ export class BirthResponse {
     return lines.join("\n");
   }
 
+  dequeueSuccess(userId: string): string {
+    return `Пользователь <@${userId}> удалён из очереди`;
+  }
+
+  dequeueNotFound(userId: string): string {
+    return `Пользователь <@${userId}> не найден в очереди`;
+  }
+
   checkQueue(records: PendingBirthRecord[]): string {
     if (records.length === 0) {
       return "Очередь на запрос даты рождения пуста";

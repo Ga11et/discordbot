@@ -95,6 +95,20 @@ export default class JobManager {
     await this.client(TABLE_NAME).where({ id: jobId }).del();
   }
 
+  public async findById(jobId: string): Promise<JobRecord | null> {
+    const row = await this.client<JobQueueRow>(TABLE_NAME)
+      .select(...RETURNING_COLUMNS)
+      .where({ id: jobId })
+      .first();
+
+    return row ? this.toJobRecord(row) : null;
+  }
+
+  public async remove(jobId: string): Promise<boolean> {
+    const deleted = await this.client(TABLE_NAME).where({ id: jobId }).del();
+    return deleted > 0;
+  }
+
   public async fail(jobId: string, errorMessage: string): Promise<void> {
     await this.client<JobQueueRow>(TABLE_NAME)
       .where({ id: jobId })

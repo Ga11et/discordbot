@@ -251,6 +251,23 @@ async function handleQueueSubcommand(
   await respond(interaction, birthResponse.checkQueue(records), { flags: EPHEMERAL_FLAGS });
 }
 
+async function handleDequeueSubcommand(
+  interaction: ChatInputCommandInteraction,
+): Promise<void> {
+  if (!interaction.inGuild() || !interaction.guildId) {
+    await respond(interaction, "Команда доступна только на сервере", { flags: EPHEMERAL_FLAGS });
+    return;
+  }
+
+  const targetUser = interaction.options.getUser("user", true);
+  const removed = await controller.removeFromCheckQueue(interaction.guildId, targetUser.id);
+  const message = removed
+    ? birthResponse.dequeueSuccess(targetUser.id)
+    : birthResponse.dequeueNotFound(targetUser.id);
+
+  await respond(interaction, message, { flags: EPHEMERAL_FLAGS });
+}
+
 async function handleCommand(
   interaction: ChatInputCommandInteraction,
 ): Promise<void> {
@@ -268,6 +285,11 @@ async function handleCommand(
 
   if (subcommand === "queue") {
     await handleQueueSubcommand(interaction);
+    return;
+  }
+
+  if (subcommand === "dequeue") {
+    await handleDequeueSubcommand(interaction);
     return;
   }
 

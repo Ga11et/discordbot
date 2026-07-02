@@ -4,6 +4,8 @@ import birthdayHandler from "../commands/birthday/handler";
 import birthAccess from "../commands/birth/access";
 import birthHandler from "../commands/birth/handler";
 import type { CommandAccessConfig } from "../commands/shared/command-access";
+import jobsAccess from "../commands/jobs/access";
+import jobsHandler from "../commands/jobs/handler";
 import kickQueueAccess from "../commands/kick-queue/access";
 import kickQueueCheck from "../commands/kick-queue/check";
 import birthCheck, { BIRTH_BUTTON_PREFIX } from "../commands/birth/check";
@@ -12,11 +14,13 @@ import kickQueueHandler from "../commands/kick-queue/handler";
 class Interaction {
   private readonly birthdayConfig: CommandAccessConfig;
   private readonly birthConfig: CommandAccessConfig;
+  private readonly jobsConfig: CommandAccessConfig;
   private readonly kickQueueConfig: CommandAccessConfig;
 
   constructor() {
     this.birthdayConfig = birthdayAccess.loadConfig();
     this.birthConfig = birthAccess.loadConfig();
+    this.jobsConfig = jobsAccess.loadConfig();
     this.kickQueueConfig = kickQueueAccess.loadConfig();
   }
 
@@ -25,6 +29,10 @@ class Interaction {
   ): Promise<boolean> {
     if (!interaction.isModalSubmit()) {
       return false;
+    }
+
+    if (interaction.customId.startsWith(`${BIRTH_BUTTON_PREFIX}:`)) {
+      return birthCheck.handleModalInteraction(interaction);
     }
 
     if (interaction.customId.startsWith("bd:")) {
@@ -45,10 +53,6 @@ class Interaction {
   ): Promise<boolean> {
     if (!interaction.isStringSelectMenu()) {
       return false;
-    }
-
-    if (interaction.customId.startsWith(`${BIRTH_BUTTON_PREFIX}:`)) {
-      return birthCheck.handleSelectInteraction(interaction);
     }
 
     return false;
@@ -98,6 +102,19 @@ class Interaction {
       }
 
       await birthdayHandler.handleCommand(interaction);
+      return;
+    }
+
+    if (interaction.commandName === "jobs") {
+      const hasAccess = await jobsAccess.ensureAccess(
+        interaction,
+        this.jobsConfig,
+      );
+      if (!hasAccess) {
+        return;
+      }
+
+      await jobsHandler.handleCommand(interaction);
       return;
     }
 

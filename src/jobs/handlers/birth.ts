@@ -10,13 +10,19 @@ interface JobPayload {
 }
 
 function checkPayload(payload: unknown): payload is JobPayload {
+  if (
+    typeof payload !== "object" ||
+    payload === null ||
+    !("guildId" in payload) ||
+    !("userId" in payload)
+  ) {
+    return false;
+  }
+
+  const { guildId, userId } = payload as JobPayload;
   return (
-    typeof payload === "object" &&
-    payload !== null &&
-    "guildId" in payload &&
-    "userId" in payload &&
-    typeof (payload as JobPayload).guildId === "string" &&
-    typeof (payload as JobPayload).userId === "string"
+    (typeof guildId === "string" || typeof guildId === "number") &&
+    (typeof userId === "string" || typeof userId === "number")
   );
 }
 
@@ -26,7 +32,10 @@ export function createBirthHandler(client: Client): JobHandler {
       throw new Error("Invalid birth send-check-message job payload");
     }
 
-    const user = await client.users.fetch(job.payload.userId);
-    await birthCheck.sendCheckMessage(user, job.payload.guildId);
+    const userId = String(job.payload.userId);
+    const guildId = String(job.payload.guildId);
+
+    const user = await client.users.fetch(userId);
+    await birthCheck.sendCheckMessage(user, guildId);
   };
 }

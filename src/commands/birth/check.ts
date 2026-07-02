@@ -1,12 +1,14 @@
 import {
   ActionRowBuilder,
-  StringSelectMenuBuilder,
-  StringSelectMenuOptionBuilder,
   ButtonBuilder,
   ButtonStyle,
+  ModalBuilder,
+  TextInputBuilder,
+  TextInputStyle,
   type ButtonInteraction,
-  type StringSelectMenuInteraction,
+  type ModalSubmitInteraction,
   type MessageCreateOptions,
+  type ModalActionRowComponentBuilder,
   type User,
 } from "discord.js";
 import Database from "../../db";
@@ -14,8 +16,7 @@ import { BirthController } from "../../modules/birth/controller";
 import { dateUtils } from "../../utils/date-utils";
 
 export const BIRTH_BUTTON_PREFIX = "birth";
-const MONTH_SELECT_ACTION = "month";
-const DAY_SELECT_ACTION = "day";
+const INPUT_ACTION = "input";
 const CONFIRM_ACTION = "confirm";
 
 const MONTHS = [
@@ -28,33 +29,25 @@ const DAYS_PER_MONTH: Record<number, number> = {
   7: 31, 8: 31, 9: 30, 10: 31, 11: 30, 12: 31,
 };
 
-const NO_VALUE = "0";
+const MONTH_INPUT_FIELD_ID = "birth-month-input";
+const DAY_INPUT_FIELD_ID = "birth-day-input";
 
 const birthController = new BirthController(Database.client);
 
+type BirthAction = typeof INPUT_ACTION | typeof CONFIRM_ACTION;
+
 interface ParsedBirthCustomId {
-  action: typeof MONTH_SELECT_ACTION | typeof DAY_SELECT_ACTION | typeof CONFIRM_ACTION;
+  action: BirthAction;
   guildId: string;
   userId: string;
-  month: string;
-  day: string;
 }
 
-function createMonthSelectCustomId(guildId: string, userId: string): string {
-  return `${BIRTH_BUTTON_PREFIX}:${MONTH_SELECT_ACTION}:${guildId}:${userId}`;
+function createInputButtonCustomId(guildId: string, userId: string): string {
+  return `${BIRTH_BUTTON_PREFIX}:${INPUT_ACTION}:${guildId}:${userId}`;
 }
 
-function createDaySelectCustomId(guildId: string, userId: string): string {
-  return `${BIRTH_BUTTON_PREFIX}:${DAY_SELECT_ACTION}:${guildId}:${userId}`;
-}
-
-function createConfirmButtonCustomId(
-  guildId: string,
-  userId: string,
-  month: string,
-  day: string,
-): string {
-  return `${BIRTH_BUTTON_PREFIX}:${CONFIRM_ACTION}:${guildId}:${userId}:${month}:${day}`;
+function createModalCustomId(guildId: string, userId: string): string {
+  return `${BIRTH_BUTTON_PREFIX}:${CONFIRM_ACTION}:${guildId}:${userId}`;
 }
 
 export function parseBirthCustomId(customId: string): ParsedBirthCustomId | null {
@@ -67,81 +60,12 @@ export function parseBirthCustomId(customId: string): ParsedBirthCustomId | null
   if (
     !guildId ||
     !userId ||
-    (action !== MONTH_SELECT_ACTION && action !== DAY_SELECT_ACTION && action !== CONFIRM_ACTION)
+    (action !== INPUT_ACTION && action !== CONFIRM_ACTION)
   ) {
     return null;
   }
 
-  const month = parts[4] ?? NO_VALUE;
-  const day = parts[5] ?? NO_VALUE;
-
-  return { action: action as ParsedBirthCustomId["action"], guildId, userId, month, day };
-}
-
-function buildMonthSelectMenu(
-  guildId: string,
-  userId: string,
-  selectedMonth: string,
-): ActionRowBuilder<StringSelectMenuBuilder> {
-  const options = MONTHS.map((name, i) => {
-    const value = String(i + 1);
-    return new StringSelectMenuOptionBuilder()
-      .setLabel(name)
-      .setValue(value)
-      .setDefault(selectedMonth === value);
-  });
-
-  const select = new StringSelectMenuBuilder()
-    .setCustomId(createMonthSelectCustomId(guildId, userId))
-    .setPlaceholder("Выбери месяц")
-    .addOptions(options);
-
-  return new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(select);
-}
-
-function buildDaySelectMenu(
-  guildId: string,
-  userId: string,
-  selectedMonth: string,
-  selectedDay: string,
-): ActionRowBuilder<StringSelectMenuBuilder> {
-  const month = parseInt(selectedMonth, 10);
-  const maxDays = month >= 1 && month <= 12 ? DAYS_PER_MONTH[month] : 31;
-
-  const options: StringSelectMenuOptionBuilder[] = [];
-  for (let d = 1; d <= maxDays; d++) {
-    const value = String(d);
-    options.push(
-      new StringSelectMenuOptionBuilder()
-        .setLabel(String(d).padStart(2, "0"))
-        .setValue(value)
-        .setDefault(selectedDay === value),
-    );
-  }
-
-  const select = new StringSelectMenuBuilder()
-    .setCustomId(createDaySelectCustomId(guildId, userId))
-    .setPlaceholder("Выбери день")
-    .addOptions(options);
-
-  return new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(select);
-}
-
-function buildConfirmButton(
-  guildId: string,
-  userId: string,
-  month: string,
-  day: string,
-): ActionRowBuilder<ButtonBuilder> {
-  const isReady = month !== NO_VALUE && day !== NO_VALUE;
-
-  const button = new ButtonBuilder()
-    .setCustomId(createConfirmButtonCustomId(guildId, userId, month, day))
-    .setLabel("Подтвердить")
-    .setStyle(ButtonStyle.Primary)
-    .setDisabled(!isReady);
-
-  return new ActionRowBuilder<ButtonBuilder>().addComponents(button);
+  return { action: action as BirthAction, guildId, userId };
 }
 
 function buildBirthCheckMessageContent(): string {
@@ -150,23 +74,22 @@ function buildBirthCheckMessageContent(): string {
     "",
     "На сервере **Julianne`s** хранятся дни рождения участников, чтобы поздравлять тебя в этот день 🎉",
     "",
-    "Пожалуйста, укажи свой день рождения (месяц и день):",
+    "Пожалуйста, укажи свой день рождения:",
     "",
-    "> Выбери месяц и день из меню ниже, затем нажми **«Подтвердить»**",
+    "> Нажми кнопку **«Указать дату»** и введи месяц и день",
   ].join("\n");
 }
 
 function buildBirthCheckMessageComponents(
   guildId: string,
   userId: string,
-  month: string = NO_VALUE,
-  day: string = NO_VALUE,
-): ActionRowBuilder<StringSelectMenuBuilder | ButtonBuilder>[] {
-  return [
-    buildMonthSelectMenu(guildId, userId, month),
-    buildDaySelectMenu(guildId, userId, month, day),
-    buildConfirmButton(guildId, userId, month, day),
-  ];
+): ActionRowBuilder<ButtonBuilder>[] {
+  const button = new ButtonBuilder()
+    .setCustomId(createInputButtonCustomId(guildId, userId))
+    .setLabel("Указать дату")
+    .setStyle(ButtonStyle.Primary);
+
+  return [new ActionRowBuilder<ButtonBuilder>().addComponents(button)];
 }
 
 async function sendCheckMessage(user: User, guildId: string): Promise<void> {
@@ -178,52 +101,11 @@ async function sendCheckMessage(user: User, guildId: string): Promise<void> {
   await user.send(payload);
 }
 
-async function handleSelectInteraction(
-  interaction: StringSelectMenuInteraction,
-): Promise<boolean> {
-  const parsed = parseBirthCustomId(interaction.customId);
-  if (!parsed) {
-    return false;
-  }
-
-  if (interaction.user.id !== parsed.userId) {
-    await interaction.reply({
-      content: "Это меню предназначено для другого пользователя.",
-      ephemeral: true,
-    });
-    return true;
-  }
-
-  const selectedValue = interaction.values[0] ?? NO_VALUE;
-
-  let newMonth = parsed.month;
-  let newDay = parsed.day;
-
-  if (parsed.action === MONTH_SELECT_ACTION) {
-    newMonth = selectedValue;
-    const maxDays = DAYS_PER_MONTH[parseInt(newMonth, 10)] ?? 31;
-    if (parseInt(newDay, 10) > maxDays) {
-      newDay = NO_VALUE;
-    }
-  } else if (parsed.action === DAY_SELECT_ACTION) {
-    newDay = selectedValue;
-  } else {
-    return false;
-  }
-
-  await interaction.update({
-    content: buildBirthCheckMessageContent(),
-    components: buildBirthCheckMessageComponents(parsed.guildId, parsed.userId, newMonth, newDay),
-  });
-
-  return true;
-}
-
 async function handleButtonInteraction(
   interaction: ButtonInteraction,
 ): Promise<boolean> {
   const parsed = parseBirthCustomId(interaction.customId);
-  if (!parsed || parsed.action !== CONFIRM_ACTION) {
+  if (!parsed || parsed.action !== INPUT_ACTION) {
     return false;
   }
 
@@ -235,18 +117,85 @@ async function handleButtonInteraction(
     return true;
   }
 
-  const { guildId, userId, month, day } = parsed;
+  const modal = new ModalBuilder()
+    .setCustomId(createModalCustomId(parsed.guildId, parsed.userId))
+    .setTitle("Укажи дату рождения")
+    .addComponents(
+      new ActionRowBuilder<ModalActionRowComponentBuilder>().addComponents(
+        new TextInputBuilder()
+          .setCustomId(MONTH_INPUT_FIELD_ID)
+          .setLabel("Месяц (число от 1 до 12)")
+          .setStyle(TextInputStyle.Short)
+          .setRequired(true)
+          .setMinLength(1)
+          .setMaxLength(2)
+          .setPlaceholder("Например: 3"),
+      ),
+      new ActionRowBuilder<ModalActionRowComponentBuilder>().addComponents(
+        new TextInputBuilder()
+          .setCustomId(DAY_INPUT_FIELD_ID)
+          .setLabel("День (число)")
+          .setStyle(TextInputStyle.Short)
+          .setRequired(true)
+          .setMinLength(1)
+          .setMaxLength(2)
+          .setPlaceholder("Например: 15"),
+      ),
+    );
 
-  if (month === NO_VALUE || day === NO_VALUE) {
+  await interaction.showModal(modal);
+  return true;
+}
+
+async function handleModalInteraction(
+  interaction: ModalSubmitInteraction,
+): Promise<boolean> {
+  const parsed = parseBirthCustomId(interaction.customId);
+  if (!parsed || parsed.action !== CONFIRM_ACTION) {
+    return false;
+  }
+
+  if (interaction.user.id !== parsed.userId) {
     await interaction.reply({
-      content: "Пожалуйста, выбери месяц и день перед подтверждением.",
+      content: "Это действие предназначено для другого пользователя.",
       ephemeral: true,
     });
     return true;
   }
 
-  const dd = String(parseInt(day, 10)).padStart(2, "0");
-  const mm = String(parseInt(month, 10)).padStart(2, "0");
+  const { guildId, userId } = parsed;
+  const monthInput = interaction.fields.getTextInputValue(MONTH_INPUT_FIELD_ID).trim();
+  const dayInput = interaction.fields.getTextInputValue(DAY_INPUT_FIELD_ID).trim();
+  const monthNum = parseInt(monthInput, 10);
+  const dayNum = parseInt(dayInput, 10);
+
+  if (isNaN(monthNum) || monthNum < 1 || monthNum > 12) {
+    await interaction.reply({
+      content: "Некорректный месяц. Укажи число от 1 до 12.",
+      ephemeral: true,
+    });
+    return true;
+  }
+
+  if (isNaN(dayNum) || dayNum < 1) {
+    await interaction.reply({
+      content: "Некорректный день. Укажи число от 1 до 31.",
+      ephemeral: true,
+    });
+    return true;
+  }
+
+  const maxDays = DAYS_PER_MONTH[monthNum] ?? 31;
+  if (dayNum > maxDays) {
+    await interaction.reply({
+      content: `В ${MONTHS[monthNum - 1]} максимум ${maxDays} дней. Попробуй ещё раз.`,
+      ephemeral: true,
+    });
+    return true;
+  }
+
+  const dd = String(dayNum).padStart(2, "0");
+  const mm = String(monthNum).padStart(2, "0");
   const dateInput = `${dd}.${mm}`;
 
   try {
@@ -257,9 +206,8 @@ async function handleButtonInteraction(
       dateUtils.parseDayMonth(dateInput),
     );
 
-    await interaction.update({
+    await interaction.reply({
       content: `✅ **Дата рождения сохранена:** ${label}\n\nСпасибо! Теперь тебя будут поздравлять на сервере 🎉`,
-      components: [],
     });
   } catch {
     await interaction.reply({
@@ -273,8 +221,8 @@ async function handleButtonInteraction(
 
 const birthCheck = {
   sendCheckMessage,
-  handleSelectInteraction,
   handleButtonInteraction,
+  handleModalInteraction,
 };
 
 export default birthCheck;
