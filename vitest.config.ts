@@ -5,5 +5,6 @@ export default defineConfig({
     include: ["tests/**/*.test.ts"],
     testTimeout: 30_000,
     setupFiles: ["tests/helpers/test-db.ts"],
+    fileParallelism: false,
   },
 });

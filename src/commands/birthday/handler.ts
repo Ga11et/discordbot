@@ -15,10 +15,12 @@ import BirthdayService from "../../modules/birthdays/services/birthday-service";
 import GratzService from "../../modules/birthdays/services/gratz-service";
 import { AppError } from "../../utils/errors";
 import { BirthdayCommandProcessor } from "../../modules/birthdays/processor";
+import { BirthdayGratzLogController } from "../../modules/birth/gratz-log/controller";
 
 const birthdayService = new BirthdayService(Database.client);
 const gratzService = new GratzService(Database.client);
 const processor = new BirthdayCommandProcessor(birthdayService, gratzService);
+const gratzLogController = new BirthdayGratzLogController(Database.client);
 const birthdayResponse = new BirthdayResponse();
 export const GRATZ_MESSAGE_SET_MODAL_ID = "bd:gratzmessage:create";
 const GRATZ_MESSAGE_SET_MODAL_INPUT_ID = "gratzmessage-text";
@@ -159,6 +161,18 @@ async function handleCommand(
           ephemeral: false,
         },
       );
+
+      if (interaction.guildId) {
+        try {
+          await gratzLogController.createLog(
+            interaction.guildId,
+            interaction.user.id,
+            targetUser.id,
+          );
+        } catch (error) {
+          console.error("Ошибка при записи поздравления в лог", error);
+        }
+      }
       return;
     }
 

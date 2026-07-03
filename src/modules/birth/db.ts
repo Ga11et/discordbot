@@ -78,4 +78,22 @@ export class BirthDb {
 
     return records;
   }
+
+  async findTodayBirthdayUserIds(): Promise<string[]> {
+    const today = new Date();
+    const todayMonth = today.getUTCMonth();
+    const todayDay = today.getUTCDate();
+
+    const rows = await this.client<BirthdayRow>(TABLE_NAME)
+      .select("discord_user_id", "birthday_date");
+
+    return rows
+      .filter((row) => {
+        const date = dateUtils.fromIsoDateString(row.birthday_date);
+        return (
+          date.getUTCMonth() === todayMonth && date.getUTCDate() === todayDay
+        );
+      })
+      .map((row) => row.discord_user_id);
+  }
 }

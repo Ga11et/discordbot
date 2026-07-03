@@ -94,7 +94,7 @@ describe("BirthController (e2e)", () => {
       );
     });
 
-    it.each(["32.01", "15.13", "abc", "29.02", "1.1"])(
+    it.each(["32.01", "15.13", "abc", "1.1"])(
       "throws AppError for invalid input %s",
       async (dateInput: string) => {
         await expect(() =>

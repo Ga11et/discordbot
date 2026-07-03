@@ -89,6 +89,33 @@ const birthBuilder = new SlashCommandBuilder()
           .setDescription("Пользователь, которого убрать из очереди")
           .setRequired(true),
       ),
+  )
+  .addSubcommandGroup((group) =>
+    group
+      .setName("gratzlog")
+      .setDescription("Лог поздравлений с днём рождения")
+      .addSubcommand((sub) =>
+        sub
+          .setName("list")
+          .setDescription("Показать последние поздравления")
+          .addUserOption((option) =>
+            option
+              .setName("user")
+              .setDescription("Фильтр по пользователю")
+              .setRequired(false),
+          ),
+      )
+      .addSubcommand((sub) =>
+        sub
+          .setName("delete")
+          .setDescription("Удалить последнее поздравление пользователя")
+          .addUserOption((option) =>
+            option
+              .setName("user")
+              .setDescription("Пользователь, у которого удалить последнюю запись")
+              .setRequired(true),
+          ),
+      ),
   );
 
 export default birthBuilder.toJSON() satisfies RESTPostAPIChatInputApplicationCommandsJSONBody;

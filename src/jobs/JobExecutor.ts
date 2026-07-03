@@ -4,8 +4,8 @@ import JMProvider from "./JobManagerProvider";
 import JobHandlers from "./JobHandlers";
 import JobManager from "./JobManager";
 
-const DEFAULT_POLL_INTERVAL_MS = 30_000;
-const MIN_POLL_INTERVAL_MS = 30_000;
+const DEFAULT_POLL_INTERVAL_MS = 60_000;
+const MIN_POLL_INTERVAL_MS = 60_000;
 const MAX_POLL_INTERVAL_MS = 7_200_000;
 
 interface RunnableJob {

@@ -7,12 +7,14 @@ import {
 import Database from "../../db";
 import { AppError } from "../../utils/errors";
 import { BirthController } from "../../modules/birth/controller";
+import { BirthdayGratzLogController } from "../../modules/birth/gratz-log/controller";
 import { BIRTH_SEND_CHECK_MESSAGE_JOB } from "../../jobs/handlers/birth";
 import JMProvider from "../../jobs/JobManagerProvider";
 import { birthResponse, type CheckAllResult } from "./response";
 
 const EPHEMERAL_FLAGS = MessageFlags.Ephemeral;
 const controller = new BirthController(Database.client);
+const gratzLogController = new BirthdayGratzLogController(Database.client);
 
 async function enqueueCheckMessageJob(
   guildId: string,
@@ -55,6 +57,62 @@ function resolveErrorMessage(error: AppError, context: string): string {
   if (error.code === "INVALID_FORMAT") return birthResponse.dateFormatError();
   if (error.code === "INVALID_DATE") return birthResponse.dateInvalidError();
   return birthResponse.unexpectedError();
+}
+
+async function handleGratzLogSubcommand(
+  interaction: ChatInputCommandInteraction,
+): Promise<void> {
+  try {
+    const subcommand = interaction.options.getSubcommand();
+
+    if (subcommand === "list") {
+      const targetUser = interaction.options.getUser("user", false);
+      const records = await gratzLogController.listRecent(targetUser?.id, 10);
+      await respond(
+        interaction,
+        birthResponse.gratzLogList(records),
+        { ephemeral: true },
+      );
+      return;
+    }
+
+    if (subcommand === "delete") {
+      const targetUser = interaction.options.getUser("user", true);
+      try {
+        await gratzLogController.deleteMostRecentByTarget(targetUser.id);
+        await respond(
+          interaction,
+          birthResponse.gratzLogDeleteSuccess(targetUser.id),
+          { ephemeral: true },
+        );
+      } catch (error) {
+        if (error instanceof AppError && error.code === "NOT_FOUND") {
+          await respond(
+            interaction,
+            birthResponse.gratzLogDeleteNotFound(targetUser.id),
+            { ephemeral: true },
+          );
+          return;
+        }
+        throw error;
+      }
+      return;
+    }
+
+    await respond(interaction, birthResponse.unexpectedError(), {
+      ephemeral: true,
+    });
+  } catch (error) {
+    if (error instanceof AppError) {
+      await respond(interaction, error.userMessage, { ephemeral: true });
+      return;
+    }
+
+    console.error("Ошибка при обработке /birth gratzlog", error);
+    await respond(interaction, birthResponse.unexpectedError(), {
+      ephemeral: true,
+    });
+  }
 }
 
 async function handleBirthdaySubcommand(
@@ -271,7 +329,13 @@ async function handleDequeueSubcommand(
 async function handleCommand(
   interaction: ChatInputCommandInteraction,
 ): Promise<void> {
+  const subcommandGroup = interaction.options.getSubcommandGroup(false);
   const subcommand = interaction.options.getSubcommand();
+
+  if (subcommandGroup === "gratzlog") {
+    await handleGratzLogSubcommand(interaction);
+    return;
+  }
 
   if (subcommand === "check") {
     await handleCheckSubcommand(interaction);

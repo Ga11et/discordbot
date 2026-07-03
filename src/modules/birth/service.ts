@@ -93,4 +93,8 @@ export class BirthService {
       birthdayLabel: dateUtils.formatDayMonth(record.birthdayDate),
     }));
   }
+
+  async findTodayBirthdayUserIds(): Promise<string[]> {
+    return this.birthDb.findTodayBirthdayUserIds();
+  }
 }

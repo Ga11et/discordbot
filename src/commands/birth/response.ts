@@ -1,5 +1,6 @@
 import { dateUtils } from "../../utils/date-utils";
 import type { BirthdayListEntry, SetBirthdayResult, PendingBirthRecord } from "../../modules/birth/controller";
+import type { GratzLogRecord } from "../../modules/birth/gratz-log/controller";
 
 export interface CheckAllResult {
   added: number;
@@ -118,6 +119,27 @@ export class BirthResponse {
       `Очередь на запрос даты рождения (${records.length}):\n` +
       records.map((r, i) => `${i + 1}. <@${r.discordUserId}>`).join("\n")
     );
+  }
+
+  gratzLogList(records: GratzLogRecord[]): string {
+    if (records.length === 0) {
+      return "Поздравлений не найдено";
+    }
+
+    return records
+      .map((record, index) => {
+        const date = dateUtils.formatDateDisplay(record.createdAt);
+        return `${index + 1}. ${date} — <@${record.actorId}> поздравил <@${record.targetUserId}>`;
+      })
+      .join("\n");
+  }
+
+  gratzLogDeleteSuccess(targetUserId: string): string {
+    return `Последняя запись поздравления для <@${targetUserId}> удалена`;
+  }
+
+  gratzLogDeleteNotFound(targetUserId: string): string {
+    return `Не найдено записей поздравлений для <@${targetUserId}>`;
   }
 }
 

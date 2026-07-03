@@ -5,6 +5,7 @@ import DiscordClient from "./discord-client";
 import Interaction from "./events/interaction-create";
 import { handleClientReady } from "./events/ready";
 import JobExecutor from "./jobs/JobExecutor";
+import { BirthdayGreetingScheduler } from "./jobs/BirthdayGreetingScheduler";
 
 export interface App {
   stop: () => Promise<void>;
@@ -29,10 +30,14 @@ export async function createApp(): Promise<App> {
   const jobExecutor = new JobExecutor(db, discord);
   jobExecutor.start();
 
+  const birthdayGreetingScheduler = new BirthdayGreetingScheduler(discord, db);
+  birthdayGreetingScheduler.start();
+
   return {
     async stop(): Promise<void> {
       // Background jobs shutdown
       jobExecutor.stop();
+      birthdayGreetingScheduler.stop();
 
       // Discord client shutdown
       discord.removeAllListeners();

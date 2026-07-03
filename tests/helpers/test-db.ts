@@ -58,6 +58,10 @@ class TestDbHelper {
     await this.client()("birthday_gratz_messages").truncate();
   }
 
+  public async resetGratzLog(): Promise<void> {
+    await this.client()("birthday_gratz_log").truncate();
+  }
+
   public async resetKickQ(): Promise<void> {
     await this.client()("kick_queue").truncate();
   }

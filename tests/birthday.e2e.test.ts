@@ -23,6 +23,7 @@ describe("BirthdayCommandProcessor (e2e)", () => {
   beforeEach(async () => {
     await testDb.resetBd();
     await testDb.resetGratz();
+    await testDb.resetGratzLog();
   });
 
   afterAll(async () => {
