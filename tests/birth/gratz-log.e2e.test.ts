@@ -102,6 +102,12 @@ describe("BirthdayGratzLogController (e2e)", () => {
   });
 
   describe("hasRecentGreeting", () => {
+    it("returns false when no logs exist for the target", async () => {
+      const hasRecent = await controller.hasRecentGreeting(TARGET_ID);
+
+      expect(hasRecent).toBe(false);
+    });
+
     it("detects a recent greeting within the last 6 months", async () => {
       await controller.createLog(GUILD_ID, ACTOR_ID, TARGET_ID);
 

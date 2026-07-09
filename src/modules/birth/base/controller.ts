@@ -40,4 +40,8 @@ export class BirthController {
   async listBirthdays(): Promise<BirthdayListEntry[]> {
     return this.service.listBirthdays();
   }
+
+  async findTodayBirthdayUserIds(): Promise<string[]> {
+    return this.service.findTodayBirthdayUserIds();
+  }
 }

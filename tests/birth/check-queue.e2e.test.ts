@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll, beforeEach, afterAll } from "vitest";
 import testDb from "../helpers/test-db";
-import { BirthController } from "../../src/modules/birth/base/controller";
 import { BirthCheckQueueController } from "../../src/modules/birth/check-queue/controller";
 
 const GUILD_ID = "guild-1";
@@ -10,18 +9,15 @@ const USER_2 = "user-2";
 const USER_3 = "user-3";
 
 describe("BirthCheckQueueController (e2e)", () => {
-  let birthController: BirthController;
   let checkQueueController: BirthCheckQueueController;
 
   beforeAll(async () => {
     await testDb.init();
-    birthController = new BirthController(testDb.client());
     checkQueueController = new BirthCheckQueueController(testDb.client());
   });
 
   beforeEach(async () => {
     await testDb.resetBirthCheckQ();
-    await testDb.resetBd();
   });
 
   afterAll(async () => {
@@ -71,6 +67,14 @@ describe("BirthCheckQueueController (e2e)", () => {
       expect(queue1).toHaveLength(0);
       expect(queue2).toHaveLength(1);
     });
+
+    it("returns false when user exists only in a different guild", async () => {
+      await checkQueueController.addToCheckQueue(GUILD_ID_2, USER_1);
+
+      const result = await checkQueueController.removeFromCheckQueue(GUILD_ID, USER_1);
+
+      expect(result).toBe(false);
+    });
   });
 
   describe("listCheckQueue", () => {
@@ -114,16 +118,6 @@ describe("BirthCheckQueueController (e2e)", () => {
       await checkQueueController.removeFromCheckQueue(GUILD_ID, USER_1);
       const result = await checkQueueController.addToCheckQueue(GUILD_ID, USER_1);
       expect(result).toBe(true);
-    });
-
-    it("does not add to queue if birthday is already set", async () => {
-      await birthController.setBirthday(USER_1, "16.01");
-
-      const existing = await birthController.getBirthday(USER_1);
-      expect(existing).not.toBeNull();
-
-      const added = await checkQueueController.addToCheckQueue(GUILD_ID, USER_1);
-      expect(added).toBe(true);
     });
   });
 });

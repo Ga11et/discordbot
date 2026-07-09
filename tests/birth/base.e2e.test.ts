@@ -156,4 +156,27 @@ describe("BirthController (e2e)", () => {
       expect(entries[1].birthdayLabel).toBe("15.01");
     });
   });
+
+  describe("findTodayBirthdayUserIds", () => {
+    it("returns empty array when no birthdays are stored", async () => {
+      const userIds = await controller.findTodayBirthdayUserIds();
+      expect(userIds).toEqual([]);
+    });
+
+    it("returns only users whose birthday matches today", async () => {
+      const today = new Date();
+      const todayLabel = dateUtils.formatDayMonth(today);
+      const yesterday = new Date(today);
+      yesterday.setUTCDate(today.getUTCDate() - 1);
+      const yesterdayLabel = dateUtils.formatDayMonth(yesterday);
+
+      await controller.setBirthday("birthday-today", todayLabel);
+      await controller.setBirthday("birthday-yesterday", yesterdayLabel);
+
+      const userIds = await controller.findTodayBirthdayUserIds();
+
+      expect(userIds).toContain("birthday-today");
+      expect(userIds).not.toContain("birthday-yesterday");
+    });
+  });
 });
