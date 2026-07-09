@@ -8,45 +8,6 @@ const birthdayBuilder = new SlashCommandBuilder()
   .setDescription("Управление днями рождения")
   .addSubcommand((sub) =>
     sub
-      .setName("me")
-      .setDescription("Показать твою дату рождения, если она сохранена"),
-  )
-  .addSubcommand((sub) =>
-    sub
-      .setName("set")
-      .setDescription("Установить или обновить дату рождения")
-      .addStringOption((option) =>
-        option
-          .setName("date")
-          .setDescription("Дата в формате ДД.ММ.ГГГГ")
-          .setRequired(true),
-      )
-      .addUserOption((option) =>
-        option
-          .setName("user")
-          .setDescription(
-            "Указать другого пользователя (если не указать — обновится своя дата)",
-          ),
-      ),
-  )
-  .addSubcommand((sub) =>
-    sub
-      .setName("list")
-      .setDescription("Показать список сохранённых дат рождения"),
-  )
-  .addSubcommand((sub) =>
-    sub
-      .setName("delete")
-      .setDescription("Удалить сохранённую дату рождения пользователя")
-      .addUserOption((option) =>
-        option
-          .setName("user")
-          .setDescription("У кого удалить дату рождения")
-          .setRequired(true),
-      ),
-  )
-  .addSubcommand((sub) =>
-    sub
       .setName("gratz")
       .setDescription("Поздравить пользователя случайным сообщением")
       .addUserOption((option) =>

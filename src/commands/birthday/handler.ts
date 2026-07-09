@@ -11,15 +11,13 @@ import {
 } from "discord.js";
 import Database from "../../db";
 import BirthdayResponse from "../../modules/birthdays/response";
-import BirthdayService from "../../modules/birthdays/services/birthday-service";
 import GratzService from "../../modules/birthdays/services/gratz-service";
 import { AppError } from "../../utils/errors";
 import { BirthdayCommandProcessor } from "../../modules/birthdays/processor";
 import { BirthdayGratzLogController } from "../../modules/birth/gratz-log/controller";
 
-const birthdayService = new BirthdayService(Database.client);
 const gratzService = new GratzService(Database.client);
-const processor = new BirthdayCommandProcessor(birthdayService, gratzService);
+const processor = new BirthdayCommandProcessor(gratzService);
 const gratzLogController = new BirthdayGratzLogController(Database.client);
 const birthdayResponse = new BirthdayResponse();
 export const GRATZ_MESSAGE_SET_MODAL_ID = "bd:gratzmessage:create";
@@ -111,42 +109,6 @@ async function handleCommand(
         "INVALID_FORMAT",
         birthdayResponse.buildUnknownGratzSubcommandError(),
       );
-    }
-
-    if (subcommand === "me") {
-      const message = await processor.showOwnBirthday(interaction.user.id);
-      await respond(interaction, message, { ephemeral: true });
-      return;
-    }
-
-    if (subcommand === "set") {
-      const dateInput = interaction.options.getString("date", true);
-      const targetUser = interaction.options.getUser("user");
-      const message = await processor.setBirthday(
-        interaction.user.id,
-        dateInput,
-        targetUser?.id,
-      );
-      await respond(interaction, message, {
-        ephemeral: targetUser?.id === interaction.user.id || !targetUser,
-      });
-      return;
-    }
-
-    if (subcommand === "delete") {
-      const targetUser = interaction.options.getUser("user", true);
-      const message = await processor.deleteBirthday(targetUser.id);
-      await respond(interaction, message, { ephemeral: true });
-      return;
-    }
-
-    if (subcommand === "list") {
-      const list = await processor.listBirthdays();
-      await respond(
-        interaction,
-        birthdayResponse.buildBirthdayListResponse(list.entries),
-      );
-      return;
     }
 
     if (subcommand === "gratz") {
