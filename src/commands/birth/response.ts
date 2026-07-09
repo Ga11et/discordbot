@@ -2,6 +2,7 @@ import { dateUtils } from "../../utils/date-utils";
 import type { BirthdayListEntry, SetBirthdayResult } from "../../modules/birth/base/controller";
 import type { PendingBirthRecord } from "../../modules/birth/check-queue/controller";
 import type { GratzLogRecord } from "../../modules/birth/gratz-log/controller";
+import type { GratzMessageRecord } from "../../modules/birth/gratz-message/controller";
 
 export interface CheckAllResult {
   added: number;
@@ -141,6 +142,48 @@ export class BirthResponse {
 
   gratzLogDeleteNotFound(targetUserId: string): string {
     return `Не найдено записей поздравлений для <@${targetUserId}>`;
+  }
+
+  gratzMessageSaved(id: number): string {
+    return `Поздравление сохранено с id ${id}`;
+  }
+
+  gratzMessageById(record: GratzMessageRecord): string {
+    return `id ${record.id}\n${record.text}`;
+  }
+
+  gratzMessageDeleted(id: number): string {
+    return `Поздравление с id ${id} удалено`;
+  }
+
+  gratzMessageList(records: GratzMessageRecord[]): string {
+    const PREVIEW_LIMIT = 200;
+    return records
+      .map((record) => {
+        const singleLine = record.text.replace(/\s+/g, " ").trim();
+        const preview =
+          singleLine.length <= PREVIEW_LIMIT
+            ? singleLine
+            : `${singleLine.slice(0, PREVIEW_LIMIT)}...`;
+        return `${record.id}. ${preview}`;
+      })
+      .join("\n");
+  }
+
+  gratzMessageEmptyError(): string {
+    return "Пока нет ни одного поздравления. Добавь через /bd gratzmessage create";
+  }
+
+  gratzMessageNotFoundError(): string {
+    return "Поздравление с таким id не найдено";
+  }
+
+  gratzMessageTextEmptyError(): string {
+    return "Текст поздравления не может быть пустым";
+  }
+
+  gratzMessageIdInvalidError(): string {
+    return "messageid должен быть положительным числом";
   }
 }
 

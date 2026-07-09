@@ -90,6 +90,58 @@ const birthBuilder = new SlashCommandBuilder()
           .setRequired(true),
       ),
   )
+  .addSubcommand((sub) =>
+    sub
+      .setName("gratz")
+      .setDescription("Поздравить пользователя случайным сообщением")
+      .addUserOption((option) =>
+        option
+          .setName("user")
+          .setDescription("Кого поздравить")
+          .setRequired(true),
+      )
+      .addStringOption((option) =>
+        option
+          .setName("messageid")
+          .setDescription("Идентификатор поздравления")
+          .setRequired(false),
+      ),
+  )
+  .addSubcommandGroup((group) =>
+    group
+      .setName("gratzmessage")
+      .setDescription("Управление сообщениями для поздравлений")
+      .addSubcommand((sub) =>
+        sub
+          .setName("create")
+          .setDescription("Создать новое поздравительное сообщение"),
+      )
+      .addSubcommand((sub) =>
+        sub
+          .setName("get")
+          .setDescription("Показать поздравительное сообщение по id")
+          .addStringOption((option) =>
+            option
+              .setName("messageid")
+              .setDescription("Идентификатор сообщения")
+              .setRequired(true),
+          ),
+      )
+      .addSubcommand((sub) =>
+        sub
+          .setName("delete")
+          .setDescription("Удалить поздравительное сообщение по id")
+          .addStringOption((option) =>
+            option
+              .setName("messageid")
+              .setDescription("Идентификатор сообщения")
+              .setRequired(true),
+          ),
+      )
+      .addSubcommand((sub) =>
+        sub.setName("list").setDescription("Список поздравительных сообщений"),
+      ),
+  )
   .addSubcommandGroup((group) =>
     group
       .setName("gratzlog")

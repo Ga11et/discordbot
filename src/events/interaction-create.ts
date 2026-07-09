@@ -1,8 +1,6 @@
 import type { Interaction as DiscordInteraction } from "discord.js";
-import birthdayAccess from "../commands/birthday/access";
-import birthdayHandler from "../commands/birthday/handler";
 import birthAccess from "../commands/birth/access";
-import birthHandler from "../commands/birth/handler";
+import birthHandler, { handleGratzModalSubmit } from "../commands/birth/handler";
 import type { CommandAccessConfig } from "../commands/shared/command-access";
 import jobsAccess from "../commands/jobs/access";
 import jobsHandler from "../commands/jobs/handler";
@@ -12,13 +10,11 @@ import birthCheck, { BIRTH_BUTTON_PREFIX } from "../commands/birth/check";
 import kickQueueHandler from "../commands/kick-queue/handler";
 
 class Interaction {
-  private readonly birthdayConfig: CommandAccessConfig;
   private readonly birthConfig: CommandAccessConfig;
   private readonly jobsConfig: CommandAccessConfig;
   private readonly kickQueueConfig: CommandAccessConfig;
 
   constructor() {
-    this.birthdayConfig = birthdayAccess.loadConfig();
     this.birthConfig = birthAccess.loadConfig();
     this.jobsConfig = jobsAccess.loadConfig();
     this.kickQueueConfig = kickQueueAccess.loadConfig();
@@ -35,17 +31,17 @@ class Interaction {
       return birthCheck.handleModalInteraction(interaction);
     }
 
-    if (interaction.customId.startsWith("bd:")) {
-      const hasAccess = await birthdayAccess.ensureAccess(
+    if (interaction.customId.startsWith("birth:")) {
+      const hasAccess = await birthAccess.ensureAccess(
         interaction,
-        this.birthdayConfig,
+        this.birthConfig,
       );
       if (!hasAccess) {
         return true;
       }
     }
 
-    return birthdayHandler.handleModalSubmit(interaction);
+    return handleGratzModalSubmit(interaction);
   }
 
   private async handleSelectInteraction(
@@ -89,19 +85,6 @@ class Interaction {
       }
 
       await kickQueueHandler.handleCommand(interaction);
-      return;
-    }
-
-    if (interaction.commandName === "bd") {
-      const hasAccess = await birthdayAccess.ensureAccess(
-        interaction,
-        this.birthdayConfig,
-      );
-      if (!hasAccess) {
-        return;
-      }
-
-      await birthdayHandler.handleCommand(interaction);
       return;
     }
 

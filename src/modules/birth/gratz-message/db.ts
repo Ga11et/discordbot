@@ -8,6 +8,12 @@ interface GratzMessageRow {
   message_text: string;
 }
 
+interface GratzMessageInsertRow {
+  message_text: string;
+  created_at: unknown;
+  updated_at: unknown;
+}
+
 export interface GratzMessageRecord {
   id: number;
   text: string;
@@ -20,28 +26,23 @@ function mapRowToRecord(row: GratzMessageRow): GratzMessageRecord {
   };
 }
 
-export default class GratzService {
+export class GratzMessageDb {
   constructor(private readonly client: Knex) {}
 
-  async createGratzMessage(text: string): Promise<{ id: number }> {
+  async create(text: string): Promise<GratzMessageRecord> {
     const now = this.client.fn.now();
-    const [row] = await this.client(TABLE_NAME)
+    const [row] = await this.client<GratzMessageInsertRow>(TABLE_NAME)
       .insert({
         message_text: text,
         created_at: now,
         updated_at: now,
       })
-      .returning<{ id: number }[]>("id");
+      .returning<GratzMessageRow[]>(["id", "message_text"]);
 
-    return { id: row.id };
+    return mapRowToRecord(row);
   }
 
-  async deleteGratzMessage(id: number): Promise<boolean> {
-    const affectedRows = await this.client(TABLE_NAME).where("id", id).del();
-    return affectedRows > 0;
-  }
-
-  async getGratzMessage(id: number): Promise<GratzMessageRecord | null> {
+  async getById(id: number): Promise<GratzMessageRecord | null> {
     const row = await this.client<GratzMessageRow>(TABLE_NAME)
       .select("id", "message_text")
       .where("id", id)
@@ -54,9 +55,12 @@ export default class GratzService {
     return mapRowToRecord(row);
   }
 
-  async listGratzMessages(
-    limit: number = LIST_LIMIT,
-  ): Promise<GratzMessageRecord[]> {
+  async delete(id: number): Promise<boolean> {
+    const affected = await this.client(TABLE_NAME).where("id", id).del();
+    return affected > 0;
+  }
+
+  async list(limit: number = LIST_LIMIT): Promise<GratzMessageRecord[]> {
     const rows = await this.client<GratzMessageRow>(TABLE_NAME)
       .select("id", "message_text")
       .orderBy("id", "asc")
@@ -65,7 +69,7 @@ export default class GratzService {
     return rows.map(mapRowToRecord);
   }
 
-  async getRandomGratzMessage(): Promise<GratzMessageRecord | null> {
+  async getRandom(): Promise<GratzMessageRecord | null> {
     const row = await this.client<GratzMessageRow>(TABLE_NAME)
       .select("id", "message_text")
       .orderByRaw("random()")

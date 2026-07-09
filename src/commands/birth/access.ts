@@ -1,13 +1,16 @@
 import type {
   ChatInputCommandInteraction,
   InteractionReplyOptions,
+  ModalSubmitInteraction,
 } from "discord.js";
 import commandAccess, {
   type CommandAccessConfig,
 } from "../shared/command-access";
 
+type BirthInteraction = ChatInputCommandInteraction | ModalSubmitInteraction;
+
 async function replyToInteraction(
-  interaction: ChatInputCommandInteraction,
+  interaction: BirthInteraction,
   content: string,
 ): Promise<void> {
   const payload: InteractionReplyOptions = {
@@ -24,7 +27,7 @@ async function replyToInteraction(
 }
 
 async function ensureAccess(
-  interaction: ChatInputCommandInteraction,
+  interaction: BirthInteraction,
   config: CommandAccessConfig,
 ): Promise<boolean> {
   const accessResult = commandAccess.getInteractionAccessResult(
@@ -44,7 +47,7 @@ async function ensureAccess(
 
 class BirthAccess {
   ensureAccess(
-    interaction: ChatInputCommandInteraction,
+    interaction: BirthInteraction,
     config: CommandAccessConfig,
   ): Promise<boolean> {
     return ensureAccess(interaction, config);

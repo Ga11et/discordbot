@@ -1,14 +1,22 @@
 import {
+  ActionRowBuilder,
   MessageFlags,
+  ModalBuilder,
+  TextInputBuilder,
+  TextInputStyle,
   type ChatInputCommandInteraction,
+  type Guild,
   type GuildMember,
   type InteractionReplyOptions,
+  type ModalActionRowComponentBuilder,
+  type ModalSubmitInteraction,
 } from "discord.js";
 import Database from "../../db";
 import { AppError } from "../../utils/errors";
 import { BirthController } from "../../modules/birth/base/controller";
 import { BirthCheckQueueController } from "../../modules/birth/check-queue/controller";
 import { BirthdayGratzLogController } from "../../modules/birth/gratz-log/controller";
+import { GratzMessageController } from "../../modules/birth/gratz-message/controller";
 import { BIRTH_SEND_CHECK_MESSAGE_JOB } from "../../jobs/handlers/birth";
 import JMProvider from "../../jobs/JobManagerProvider";
 import { birthResponse, type CheckAllResult } from "./response";
@@ -17,6 +25,7 @@ const EPHEMERAL_FLAGS = MessageFlags.Ephemeral;
 const birthController = new BirthController(Database.client);
 const checkQueueController = new BirthCheckQueueController(Database.client);
 const gratzLogController = new BirthdayGratzLogController(Database.client);
+const gratzMessageController = new GratzMessageController(Database.client);
 
 async function enqueueCheckMessageJob(
   guildId: string,
@@ -339,6 +348,11 @@ async function handleCommand(
     return;
   }
 
+  if (subcommandGroup === "gratzmessage" || subcommand === "gratz") {
+    await handleGratzSubcommands(interaction);
+    return;
+  }
+
   if (subcommand === "check") {
     await handleCheckSubcommand(interaction);
     return;
@@ -365,3 +379,162 @@ async function handleCommand(
 const birthHandler = { handleCommand };
 
 export default birthHandler;
+
+export const GRATZ_MESSAGE_MODAL_ID = "birth:gratzmessage:create";
+const GRATZ_MESSAGE_MODAL_INPUT_ID = "gratzmessage-text";
+
+function normalizeEmojiAliases(text: string, guild: Guild | null): string {
+  if (!guild) {
+    return text;
+  }
+
+  return text.replace(
+    /:([a-zA-Z0-9_]{2,32}):/g,
+    (match, emojiName, offset, source) => {
+      const prevChar = source[offset - 1];
+      const suffix = source.slice(offset + match.length);
+
+      if (prevChar === "<" || /^\d+>/.test(suffix)) {
+        return match;
+      }
+
+      const emoji = guild.emojis.cache.find((item) => item.name === emojiName);
+      return emoji ? emoji.toString() : match;
+    },
+  );
+}
+
+function mapGratzAppError(error: AppError): string {
+  switch (error.code) {
+    case "NOT_FOUND":
+      return birthResponse.gratzMessageNotFoundError();
+    case "EMPTY_VALUE":
+      return birthResponse.gratzMessageTextEmptyError();
+    case "INVALID_INPUT":
+      return birthResponse.gratzMessageIdInvalidError();
+    default:
+      return birthResponse.unexpectedError();
+  }
+}
+
+async function handleGratzSubcommands(
+  interaction: ChatInputCommandInteraction,
+): Promise<void> {
+  try {
+    const subcommandGroup = interaction.options.getSubcommandGroup(false);
+    const subcommand = interaction.options.getSubcommand();
+
+    if (subcommandGroup === "gratzmessage") {
+      if (subcommand === "create") {
+        const modal = new ModalBuilder()
+          .setCustomId(GRATZ_MESSAGE_MODAL_ID)
+          .setTitle("Новое поздравление")
+          .addComponents(
+            new ActionRowBuilder<ModalActionRowComponentBuilder>().addComponents(
+              new TextInputBuilder()
+                .setCustomId(GRATZ_MESSAGE_MODAL_INPUT_ID)
+                .setLabel("Текст поздравления")
+                .setStyle(TextInputStyle.Paragraph)
+                .setRequired(true)
+                .setMaxLength(2000),
+            ),
+          );
+
+        await interaction.showModal(modal);
+        return;
+      }
+
+      if (subcommand === "get") {
+        const messageId = interaction.options.getString("messageid", true);
+        const record = await gratzMessageController.getGratzMessage(messageId);
+        await respond(interaction, birthResponse.gratzMessageById(record), { ephemeral: true });
+        return;
+      }
+
+      if (subcommand === "delete") {
+        const messageId = interaction.options.getString("messageid", true);
+        const record = await gratzMessageController.deleteGratzMessage(messageId);
+        await respond(interaction, birthResponse.gratzMessageDeleted(record.id), { ephemeral: true });
+        return;
+      }
+
+      if (subcommand === "list") {
+        const records = await gratzMessageController.listGratzMessages();
+        await respond(interaction, birthResponse.gratzMessageList(records), { ephemeral: true });
+        return;
+      }
+
+      throw new AppError("INVALID_FORMAT");
+    }
+
+    if (subcommand === "gratz") {
+      const targetUser = interaction.options.getUser("user", true);
+      const messageId =
+        interaction.options.getString("messageid", false) ?? undefined;
+      const message = await gratzMessageController.gratzUser(targetUser.id, messageId);
+      await respond(
+        interaction,
+        normalizeEmojiAliases(message, interaction.guild),
+        { ephemeral: false },
+      );
+
+      if (interaction.guildId) {
+        try {
+          await gratzLogController.createLog(
+            interaction.guildId,
+            interaction.user.id,
+            targetUser.id,
+          );
+        } catch (error) {
+          console.error("Ошибка при записи поздравления в лог", error);
+        }
+      }
+      return;
+    }
+
+    throw new AppError("INVALID_FORMAT");
+  } catch (error) {
+    if (error instanceof AppError) {
+      await respond(interaction, mapGratzAppError(error), { ephemeral: true });
+      return;
+    }
+
+    console.error("Ошибка при обработке /birth gratz", error);
+    await respond(interaction, birthResponse.unexpectedError(), { ephemeral: true });
+  }
+}
+
+export async function handleGratzModalSubmit(
+  interaction: ModalSubmitInteraction,
+): Promise<boolean> {
+  if (interaction.customId !== GRATZ_MESSAGE_MODAL_ID) {
+    return false;
+  }
+
+  try {
+    const text = interaction.fields.getTextInputValue(GRATZ_MESSAGE_MODAL_INPUT_ID);
+    const normalizedText = normalizeEmojiAliases(text, interaction.guild);
+    const record = await gratzMessageController.createGratzMessage(normalizedText);
+    await interaction.reply({
+      content: birthResponse.gratzMessageSaved(record.id),
+      ephemeral: true,
+    });
+    return true;
+  } catch (error) {
+    if (error instanceof AppError) {
+      await interaction.reply({
+        content: mapGratzAppError(error),
+        ephemeral: true,
+      });
+      return true;
+    }
+
+    console.error("Ошибка при обработке modal /birth gratzmessage create", error);
+    await interaction.reply({
+      content: birthResponse.unexpectedError(),
+      ephemeral: true,
+    });
+    return true;
+  }
+}
+

@@ -3,7 +3,6 @@ import {
   Routes,
   type RESTPostAPIChatInputApplicationCommandsJSONBody,
 } from "discord.js";
-import bdDef from "./birthday/definition";
 import birthDef from "./birth/definition";
 import jobsDef from "./jobs/definition";
 import kqDef from "./kick-queue/definition";
@@ -52,6 +51,6 @@ class CommandRegister {
   }
 }
 
-const commandRegister = new CommandRegister().addMany([bdDef, birthDef, jobsDef, kqDef]);
+const commandRegister = new CommandRegister().addMany([birthDef, jobsDef, kqDef]);
 
 export default commandRegister;

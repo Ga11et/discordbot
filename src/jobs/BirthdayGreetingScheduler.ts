@@ -1,9 +1,10 @@
 import type { Client } from "discord.js";
 import type { Knex } from "knex";
 import commandAccess from "../commands/shared/command-access";
+import { AppError } from "../utils/errors";
 import { BirthdayGratzLogService } from "../modules/birth/gratz-log/service";
 import { BirthService } from "../modules/birth/base/service";
-import GratzService from "../modules/birthdays/services/gratz-service";
+import { GratzMessageService } from "../modules/birth/gratz-message/service";
 
 const TARGET_CHANNEL_ID = "1494930795284922409";
 const ONE_HOUR_MS = 60 * 60 * 1_000;
@@ -11,7 +12,7 @@ const ONE_HOUR_MS = 60 * 60 * 1_000;
 export class BirthdayGreetingScheduler {
   private timer: NodeJS.Timeout | null = null;
   private readonly birthdayService: BirthService;
-  private readonly gratzService: GratzService;
+  private readonly gratzService: GratzMessageService;
   private readonly gratzLogService: BirthdayGratzLogService;
 
   constructor(
@@ -19,7 +20,7 @@ export class BirthdayGreetingScheduler {
     private readonly db: Knex,
   ) {
     this.birthdayService = new BirthService(db);
-    this.gratzService = new GratzService(db);
+    this.gratzService = new GratzMessageService(db);
     this.gratzLogService = new BirthdayGratzLogService(db);
   }
 
@@ -100,9 +101,15 @@ export class BirthdayGreetingScheduler {
         continue;
       }
 
-      const messageTemplate = await this.gratzService.getRandomGratzMessage();
-      if (!messageTemplate) {
-        console.warn("Нет сохранённых поздравительных сообщений");
+      let messageTemplate;
+      try {
+        messageTemplate = await this.gratzService.getRandom();
+      } catch (error) {
+        if (error instanceof AppError && error.code === "NOT_FOUND") {
+          console.warn("Нет сохранённых поздравительных сообщений");
+        } else {
+          console.error("Ошибка при получении поздравления", error);
+        }
         continue;
       }
 
