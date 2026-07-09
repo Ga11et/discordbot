@@ -6,14 +6,16 @@ import {
 } from "discord.js";
 import Database from "../../db";
 import { AppError } from "../../utils/errors";
-import { BirthController } from "../../modules/birth/controller";
+import { BirthController } from "../../modules/birth/base/controller";
+import { BirthCheckQueueController } from "../../modules/birth/check-queue/controller";
 import { BirthdayGratzLogController } from "../../modules/birth/gratz-log/controller";
 import { BIRTH_SEND_CHECK_MESSAGE_JOB } from "../../jobs/handlers/birth";
 import JMProvider from "../../jobs/JobManagerProvider";
 import { birthResponse, type CheckAllResult } from "./response";
 
 const EPHEMERAL_FLAGS = MessageFlags.Ephemeral;
-const controller = new BirthController(Database.client);
+const birthController = new BirthController(Database.client);
+const checkQueueController = new BirthCheckQueueController(Database.client);
 const gratzLogController = new BirthdayGratzLogController(Database.client);
 
 async function enqueueCheckMessageJob(
@@ -122,7 +124,7 @@ async function handleBirthdaySubcommand(
 
   if (subcommand === "me") {
     try {
-      const record = await controller.getOwnBirthday(interaction.user.id);
+      const record = await birthController.getOwnBirthday(interaction.user.id);
       await respond(
         interaction,
         birthResponse.ownBirthday(record.birthdayDate),
@@ -144,7 +146,7 @@ async function handleBirthdaySubcommand(
   if (subcommand === "get") {
     const targetUser = interaction.options.getUser("user", true);
     try {
-      const record = await controller.getBirthday(targetUser.id);
+      const record = await birthController.getBirthday(targetUser.id);
       const message = record
         ? birthResponse.userBirthday(targetUser.id, record.birthdayDate)
         : birthResponse.userBirthdayNotFound(targetUser.id);
@@ -160,7 +162,7 @@ async function handleBirthdaySubcommand(
     const dateInput = interaction.options.getString("date", true);
     const targetUser = interaction.options.getUser("user");
     try {
-      const result = await controller.setBirthday(
+      const result = await birthController.setBirthday(
         interaction.user.id,
         dateInput,
         targetUser?.id,
@@ -184,7 +186,7 @@ async function handleBirthdaySubcommand(
   if (subcommand === "delete") {
     const targetUser = interaction.options.getUser("user", true);
     try {
-      const result = await controller.deleteBirthday(targetUser.id);
+      const result = await birthController.deleteBirthday(targetUser.id);
       await respond(
         interaction,
         birthResponse.deleteBirthday(result.targetUserId),
@@ -207,7 +209,7 @@ async function handleBirthdaySubcommand(
 
   if (subcommand === "list") {
     try {
-      const entries = await controller.listBirthdays();
+      const entries = await birthController.listBirthdays();
       await respond(interaction, birthResponse.listBirthdays(entries));
     } catch (error) {
       console.error("Ошибка при обработке /birth list", error);
@@ -233,13 +235,13 @@ async function handleCheckSubcommand(
 
   await interaction.deferReply({ flags: EPHEMERAL_FLAGS });
 
-  const existing = await controller.getBirthday(userId);
+  const existing = await birthController.getBirthday(userId);
   if (existing) {
     await interaction.editReply(birthResponse.checkAlreadySet(userId));
     return;
   }
 
-  const added = await controller.addToCheckQueue(guildId, userId);
+  const added = await checkQueueController.addToCheckQueue(guildId, userId);
   if (!added) {
     await interaction.editReply(birthResponse.checkAlreadyPending(userId));
     return;
@@ -249,7 +251,7 @@ async function handleCheckSubcommand(
     await enqueueCheckMessageJob(guildId, userId);
     await interaction.editReply(birthResponse.checkEnqueued(userId));
   } catch {
-    await controller.removeFromCheckQueue(guildId, userId);
+    await checkQueueController.removeFromCheckQueue(guildId, userId);
     await interaction.editReply(birthResponse.checkEnqueueFailed(userId));
   }
 }
@@ -273,13 +275,13 @@ async function handleCheckAllSubcommand(
   for (const member of eligibleMembers) {
     const userId = member.user.id;
 
-    const existing = await controller.getBirthday(userId);
+    const existing = await birthController.getBirthday(userId);
     if (existing) {
       result.alreadySet += 1;
       continue;
     }
 
-    const added = await controller.addToCheckQueue(guildId, userId);
+    const added = await checkQueueController.addToCheckQueue(guildId, userId);
     if (!added) {
       result.alreadyPending += 1;
       continue;
@@ -289,7 +291,7 @@ async function handleCheckAllSubcommand(
       await enqueueCheckMessageJob(guildId, userId);
       result.added += 1;
     } catch {
-      await controller.removeFromCheckQueue(guildId, userId);
+      await checkQueueController.removeFromCheckQueue(guildId, userId);
       result.failed += 1;
     }
   }
@@ -305,7 +307,7 @@ async function handleQueueSubcommand(
     return;
   }
 
-  const records = await controller.listCheckQueue(interaction.guildId);
+  const records = await checkQueueController.listCheckQueue(interaction.guildId);
   await respond(interaction, birthResponse.checkQueue(records), { flags: EPHEMERAL_FLAGS });
 }
 
@@ -318,7 +320,7 @@ async function handleDequeueSubcommand(
   }
 
   const targetUser = interaction.options.getUser("user", true);
-  const removed = await controller.removeFromCheckQueue(interaction.guildId, targetUser.id);
+  const removed = await checkQueueController.removeFromCheckQueue(interaction.guildId, targetUser.id);
   const message = removed
     ? birthResponse.dequeueSuccess(targetUser.id)
     : birthResponse.dequeueNotFound(targetUser.id);

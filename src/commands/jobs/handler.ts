@@ -7,7 +7,7 @@ import Database from "../../db";
 import JMProvider from "../../jobs/JobManagerProvider";
 import { BIRTH_SEND_CHECK_MESSAGE_JOB } from "../../jobs/handlers/birth";
 import { KICK_QUEUE_SEND_CHECK_MESSAGE_JOB } from "../../jobs/handlers/kickqueue";
-import { BirthCheckQueueDb } from "../../modules/birth/check-queue-db";
+import { BirthCheckQueueDb } from "../../modules/birth/check-queue/db";
 import KickQueueService from "../../modules/members/services/kick-queue-service";
 
 const EPHEMERAL_FLAGS = MessageFlags.Ephemeral;

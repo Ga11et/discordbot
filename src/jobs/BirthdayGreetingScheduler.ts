@@ -2,7 +2,7 @@ import type { Client } from "discord.js";
 import type { Knex } from "knex";
 import commandAccess from "../commands/shared/command-access";
 import { BirthdayGratzLogService } from "../modules/birth/gratz-log/service";
-import { BirthService } from "../modules/birth/service";
+import { BirthService } from "../modules/birth/base/service";
 import GratzService from "../modules/birthdays/services/gratz-service";
 
 const TARGET_CHANNEL_ID = "1494930795284922409";

@@ -12,7 +12,8 @@ import {
   type User,
 } from "discord.js";
 import Database from "../../db";
-import { BirthController } from "../../modules/birth/controller";
+import { BirthController } from "../../modules/birth/base/controller";
+import { BirthCheckQueueController } from "../../modules/birth/check-queue/controller";
 import { dateUtils } from "../../utils/date-utils";
 
 export const BIRTH_BUTTON_PREFIX = "birth";
@@ -33,6 +34,7 @@ const MONTH_INPUT_FIELD_ID = "birth-month-input";
 const DAY_INPUT_FIELD_ID = "birth-day-input";
 
 const birthController = new BirthController(Database.client);
+const checkQueueController = new BirthCheckQueueController(Database.client);
 
 type BirthAction = typeof INPUT_ACTION | typeof CONFIRM_ACTION;
 
@@ -200,7 +202,7 @@ async function handleModalInteraction(
 
   try {
     await birthController.setBirthday(userId, dateInput);
-    await birthController.removeFromCheckQueue(guildId, userId);
+    await checkQueueController.removeFromCheckQueue(guildId, userId);
 
     const label = dateUtils.formatDayMonth(
       dateUtils.parseDayMonth(dateInput),

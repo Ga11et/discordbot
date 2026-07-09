@@ -1,10 +1,7 @@
 import type { Knex } from "knex";
-import { AppError } from "../../utils/errors";
-import { dateUtils } from "../../utils/date-utils";
+import { AppError } from "../../../utils/errors";
+import { dateUtils } from "../../../utils/date-utils";
 import { BirthDb, type BirthdayRecord } from "./db";
-import { BirthCheckQueueDb, type PendingBirthRecord } from "./check-queue-db";
-
-export type { PendingBirthRecord };
 
 export type SetBirthdayResult =
   | { type: "self" }
@@ -18,11 +15,9 @@ export interface BirthdayListEntry {
 
 export class BirthService {
   private readonly birthDb: BirthDb;
-  private readonly checkQueueDb: BirthCheckQueueDb;
 
   constructor(client: Knex) {
     this.birthDb = new BirthDb(client);
-    this.checkQueueDb = new BirthCheckQueueDb(client);
   }
 
   async getOwnBirthday(userId: string): Promise<BirthdayRecord> {
@@ -70,18 +65,6 @@ export class BirthService {
     }
 
     return { targetUserId };
-  }
-
-  async addToCheckQueue(guildId: string, userId: string): Promise<boolean> {
-    return this.checkQueueDb.addPending(guildId, userId);
-  }
-
-  async removeFromCheckQueue(guildId: string, userId: string): Promise<boolean> {
-    return this.checkQueueDb.removePending(guildId, userId);
-  }
-
-  async listCheckQueue(guildId: string): Promise<PendingBirthRecord[]> {
-    return this.checkQueueDb.listPending(guildId);
   }
 
   async listBirthdays(): Promise<BirthdayListEntry[]> {

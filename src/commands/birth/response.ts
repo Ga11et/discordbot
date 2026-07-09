@@ -1,5 +1,6 @@
 import { dateUtils } from "../../utils/date-utils";
-import type { BirthdayListEntry, SetBirthdayResult, PendingBirthRecord } from "../../modules/birth/controller";
+import type { BirthdayListEntry, SetBirthdayResult } from "../../modules/birth/base/controller";
+import type { PendingBirthRecord } from "../../modules/birth/check-queue/controller";
 import type { GratzLogRecord } from "../../modules/birth/gratz-log/controller";
 
 export interface CheckAllResult {

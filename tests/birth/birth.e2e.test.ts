@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, beforeEach, afterAll } from "vitest";
 import testDb from "../helpers/test-db";
-import { BirthController } from "../../src/modules/birth/controller";
+import { BirthController } from "../../src/modules/birth/base/controller";
 import { AppError } from "../../src/utils/errors";
 import { dateUtils } from "../../src/utils/date-utils";
 

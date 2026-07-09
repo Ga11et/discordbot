@@ -1,5 +1,5 @@
 import type { Knex } from "knex";
-import { dateUtils } from "../../utils/date-utils";
+import { dateUtils } from "../../../utils/date-utils";
 
 const TABLE_NAME = "birthdays";
 const LIST_LIMIT = 20;
