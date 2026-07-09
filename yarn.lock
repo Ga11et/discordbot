@@ -566,15 +566,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/knex@npm:^0.16.1":
-  version: 0.16.1
-  resolution: "@types/knex@npm:0.16.1"
-  dependencies:
-    knex: "npm:*"
-  checksum: 10c0/3b0b396b311a2c3cd4af9d9be946bb9f3445b2b8702f387bac2b40cbf3a2394930453ef665ce4752a21292b43b327efbb40e0b8d5ad9459110e18259ab864df4
-  languageName: node
-  linkType: hard
-
 "@types/node@npm:*, @types/node@npm:^25.6.0":
   version: 25.6.0
   resolution: "@types/node@npm:25.6.0"
@@ -905,7 +896,6 @@ __metadata:
   resolution: "discordbot@workspace:."
   dependencies:
     "@discordjs/rest": "npm:^2.3.0"
-    "@types/knex": "npm:^0.16.1"
     "@types/node": "npm:^25.6.0"
     "@types/pg": "npm:^8"
     discord-api-types: "npm:^0.37.76"
@@ -1225,7 +1215,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"knex@npm:*, knex@npm:^3.2.9":
+"knex@npm:^3.2.9":
   version: 3.2.9
   resolution: "knex@npm:3.2.9"
   dependencies:
