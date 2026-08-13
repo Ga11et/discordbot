@@ -171,7 +171,7 @@ export class BirthResponse {
   }
 
   gratzMessageEmptyError(): string {
-    return "Пока нет ни одного поздравления. Добавь через /bd gratzmessage create";
+    return "Пока нет ни одного поздравления. Добавь через /birth gratzmessage create";
   }
 
   gratzMessageNotFoundError(): string {

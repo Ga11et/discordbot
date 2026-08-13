@@ -4,7 +4,7 @@ const TABLE_NAME = "birthday_gratz_messages";
 const LIST_LIMIT = 100;
 
 interface GratzMessageRow {
-  id: number;
+  id: string | number;
   message_text: string;
 }
 
@@ -21,7 +21,7 @@ export interface GratzMessageRecord {
 
 function mapRowToRecord(row: GratzMessageRow): GratzMessageRecord {
   return {
-    id: row.id,
+    id: Number(row.id),
     text: row.message_text,
   };
 }
