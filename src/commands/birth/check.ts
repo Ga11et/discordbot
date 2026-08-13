@@ -16,7 +16,7 @@ import { BirthController } from "../../modules/birth/base/controller";
 import { BirthCheckQueueController } from "../../modules/birth/check-queue/controller";
 import { dateUtils } from "../../utils/date-utils";
 
-export const BIRTH_BUTTON_PREFIX = "birth";
+export const BIRTH_BUTTON_PREFIX = "birth-check";
 const INPUT_ACTION = "input";
 const CONFIRM_ACTION = "confirm";
 
